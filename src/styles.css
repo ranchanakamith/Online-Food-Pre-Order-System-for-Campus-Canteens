@@ -737,3 +737,88 @@ input:focus, select:focus {
 
   .timeline-step span { margin: 0; }
 }
+
+/* ===== Role-specific navigation and enhanced worker dashboard ===== */
+.role-nav-title {
+  color: #166534;
+  font-weight: 850;
+  letter-spacing: .02em;
+}
+
+.worker-food-row-expanded {
+  min-width: 1260px;
+  grid-template-columns: 1.5fr .8fr .7fr .7fr .7fr .8fr 1fr 1fr .7fr;
+}
+
+.price-input {
+  min-width: 92px;
+}
+
+.stock-count,
+.stock-empty {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  min-width: 42px;
+  padding: 7px 10px;
+  border-radius: 10px;
+}
+
+.stock-count {
+  background: #ecfdf3;
+  color: #166534;
+}
+
+.stock-empty {
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.availability-button {
+  border: 1px solid transparent;
+  border-radius: 999px;
+  min-height: 38px;
+  padding: 8px 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  font-weight: 800;
+  font-size: .82rem;
+  transition: .2s ease;
+}
+
+.availability-button.available {
+  background: #dcfce7;
+  border-color: #bbf7d0;
+  color: #166534;
+}
+
+.availability-button.sold-out {
+  background: #fee2e2;
+  border-color: #fecaca;
+  color: #b91c1c;
+}
+
+.availability-button:disabled {
+  cursor: not-allowed;
+  opacity: .72;
+}
+
+.availability-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.worker-save-btn {
+  min-width: 72px;
+}
+
+@media (max-width: 700px) {
+  .role-nav-title {
+    display: none;
+  }
+}

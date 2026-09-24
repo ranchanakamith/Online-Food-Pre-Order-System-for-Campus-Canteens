@@ -4,6 +4,8 @@ export default function Navbar() {
   const location = useLocation()
   const publicPages = ['/', '/login', '/register', '/forgot-password']
   const isPublicPage = publicPages.includes(location.pathname)
+  const isWorkerPage = location.pathname.startsWith('/worker')
+  const isAdminPage = location.pathname.startsWith('/admin')
 
   if (isPublicPage) {
     return (
@@ -16,6 +18,40 @@ export default function Navbar() {
           <div className="nav-actions">
             <NavLink to="/login" className="btn btn-ghost">Login</NavLink>
             <NavLink to="/register" className="btn btn-primary">Create Account</NavLink>
+          </div>
+        </div>
+      </header>
+    )
+  }
+
+  if (isWorkerPage) {
+    return (
+      <header className="navbar">
+        <div className="container nav-inner">
+          <NavLink to="/worker" className="brand">
+            <span className="brand-mark">CB</span>
+            <span>CampusBite</span>
+          </NavLink>
+          <nav className="role-nav-title">Worker Portal</nav>
+          <div className="nav-actions">
+            <NavLink to="/login" className="btn btn-secondary">Logout</NavLink>
+          </div>
+        </div>
+      </header>
+    )
+  }
+
+  if (isAdminPage) {
+    return (
+      <header className="navbar">
+        <div className="container nav-inner">
+          <NavLink to="/admin" className="brand">
+            <span className="brand-mark">CB</span>
+            <span>CampusBite</span>
+          </NavLink>
+          <nav className="role-nav-title">Admin Portal</nav>
+          <div className="nav-actions">
+            <NavLink to="/login" className="btn btn-secondary">Logout</NavLink>
           </div>
         </div>
       </header>

@@ -1,9 +1,9 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 
 const initialFood = [
-  { id: 1, name: 'Chicken Fried Rice', planned: 100, prepared: 80, sold: 56, available: true },
-  { id: 2, name: 'Fish Rice', planned: 70, prepared: 60, sold: 48, available: true },
-  { id: 3, name: 'Vegetable Rice', planned: 40, prepared: 35, sold: 27, available: true },
+  { id: 1, name: 'Chicken Fried Rice', price: 650, planned: 100, prepared: 80, sold: 56, available: true },
+  { id: 2, name: 'Fish Rice', price: 600, planned: 70, prepared: 60, sold: 48, available: true },
+  { id: 3, name: 'Vegetable Rice', price: 500, planned: 40, prepared: 35, sold: 27, available: true },
 ]
 
 const initialOrders = [
@@ -14,15 +14,40 @@ const initialOrders = [
 export default function WorkerDashboard() {
   const [foods, setFoods] = useState(initialFood)
   const [orders, setOrders] = useState(initialOrders)
+  const [savedFoodId, setSavedFoodId] = useState(null)
+
+  const totals = useMemo(() => ({
+    prepared: foods.reduce((sum, food) => sum + food.prepared, 0),
+    sold: foods.reduce((sum, food) => sum + food.sold, 0),
+    stock: foods.reduce((sum, food) => sum + Math.max(food.prepared - food.sold, 0), 0),
+  }), [foods])
 
   const updateFood = (id, field, value) => {
-    setFoods((current) =>
-      current.map((food) =>
-        food.id === id
-          ? { ...food, [field]: field === 'available' ? value : Math.max(0, Number(value) || 0) }
-          : food
-      )
-    )
+    setFoods((current) => current.map((food) => {
+      if (food.id !== id) return food
+
+      if (field === 'available') {
+        return { ...food, available: value }
+      }
+
+      const numericValue = Math.max(0, Number(value) || 0)
+      const updated = { ...food, [field]: numericValue }
+
+      if (field === 'sold' && numericValue >= updated.prepared) {
+        updated.available = false
+      }
+
+      if ((field === 'prepared' || field === 'sold') && updated.prepared - updated.sold > 0 && !food.available) {
+        updated.available = true
+      }
+
+      return updated
+    }))
+  }
+
+  const saveFood = (id) => {
+    setSavedFoodId(id)
+    setTimeout(() => setSavedFoodId(null), 1200)
   }
 
   const nextStatus = (status) => {
@@ -36,52 +61,101 @@ export default function WorkerDashboard() {
         <div>
           <span className="eyebrow">Worker Dashboard</span>
           <h1>Main Canteen</h1>
-          <p>Manage today's preparation, availability and orders.</p>
+          <p>Manage food prices, daily stock, availability and student orders.</p>
         </div>
       </div>
 
       <div className="stats-grid">
         <div className="stat-card"><span>Orders Today</span><strong>{orders.length}</strong></div>
-        <div className="stat-card"><span>Pending</span><strong>{orders.filter(o => o.status === 'PENDING').length}</strong></div>
-        <div className="stat-card"><span>Preparing</span><strong>{orders.filter(o => o.status === 'PREPARING').length}</strong></div>
-        <div className="stat-card"><span>Completed</span><strong>{orders.filter(o => o.status === 'COMPLETED').length}</strong></div>
+        <div className="stat-card"><span>Total Prepared</span><strong>{totals.prepared}</strong></div>
+        <div className="stat-card"><span>Total Sold</span><strong>{totals.sold}</strong></div>
+        <div className="stat-card"><span>Stock Left</span><strong>{totals.stock}</strong></div>
       </div>
 
       <div className="panel dashboard-panel">
         <div className="panel-title">
           <div>
-            <h2>Today's Food Preparation</h2>
-            <p>Remaining and required amounts are calculated automatically.</p>
+            <h2>Food Management</h2>
+            <p>Update price, preparation quantities and availability. Stock left is calculated automatically.</p>
           </div>
         </div>
 
         <div className="worker-food-table">
-          <div className="worker-food-row worker-food-head">
-            <span>Food</span><span>Planned</span><span>Prepared</span><span>Sold</span>
-            <span>Remaining</span><span>Need to Prepare</span><span>Available</span>
+          <div className="worker-food-row worker-food-row-expanded worker-food-head">
+            <span>Food</span>
+            <span>Price (Rs.)</span>
+            <span>Planned</span>
+            <span>Prepared</span>
+            <span>Sold</span>
+            <span>Stock Left</span>
+            <span>Need to Prepare</span>
+            <span>Availability</span>
+            <span>Action</span>
           </div>
 
           {foods.map((food) => {
-            const remaining = Math.max(food.prepared - food.sold, 0)
+            const stockLeft = Math.max(food.prepared - food.sold, 0)
             const need = Math.max(food.planned - food.prepared, 0)
+            const isAvailable = food.available && stockLeft > 0
 
             return (
-              <div className="worker-food-row" key={food.id}>
+              <div className="worker-food-row worker-food-row-expanded" key={food.id}>
                 <strong>{food.name}</strong>
-                <input className="table-number-input" type="number" value={food.planned}
-                  onChange={(e) => updateFood(food.id, 'planned', e.target.value)} />
-                <input className="table-number-input" type="number" value={food.prepared}
-                  onChange={(e) => updateFood(food.id, 'prepared', e.target.value)} />
-                <span>{food.sold}</span>
-                <strong>{remaining}</strong>
+
+                <input
+                  className="table-number-input price-input"
+                  type="number"
+                  min="0"
+                  value={food.price}
+                  onChange={(e) => updateFood(food.id, 'price', e.target.value)}
+                />
+
+                <input
+                  className="table-number-input"
+                  type="number"
+                  min="0"
+                  value={food.planned}
+                  onChange={(e) => updateFood(food.id, 'planned', e.target.value)}
+                />
+
+                <input
+                  className="table-number-input"
+                  type="number"
+                  min="0"
+                  value={food.prepared}
+                  onChange={(e) => updateFood(food.id, 'prepared', e.target.value)}
+                />
+
+                <input
+                  className="table-number-input"
+                  type="number"
+                  min="0"
+                  value={food.sold}
+                  onChange={(e) => updateFood(food.id, 'sold', e.target.value)}
+                />
+
+                <strong className={stockLeft === 0 ? 'stock-empty' : 'stock-count'}>
+                  {stockLeft}
+                </strong>
+
                 <span className={need > 0 ? 'need-warning' : 'need-ok'}>
                   {need > 0 ? `${need} more` : 'Enough'}
                 </span>
-                <label className="switch-row">
-                  <input type="checkbox" checked={food.available}
-                    onChange={(e) => updateFood(food.id, 'available', e.target.checked)} />
-                  <span>{food.available ? 'Available' : 'Sold Out'}</span>
-                </label>
+
+                <button
+                  type="button"
+                  className={`availability-button ${isAvailable ? 'available' : 'sold-out'}`}
+                  onClick={() => updateFood(food.id, 'available', !food.available)}
+                  disabled={stockLeft === 0}
+                  title={stockLeft === 0 ? 'No prepared stock left' : 'Change food availability'}
+                >
+                  <span className="availability-dot" />
+                  {isAvailable ? 'Available' : 'Sold Out'}
+                </button>
+
+                <button className="btn btn-primary worker-save-btn" onClick={() => saveFood(food.id)}>
+                  {savedFoodId === food.id ? 'Saved' : 'Save'}
+                </button>
               </div>
             )
           })}
@@ -92,7 +166,7 @@ export default function WorkerDashboard() {
         <div className="panel-title">
           <div>
             <h2>Student Orders</h2>
-            <p>Update orders until they are completed.</p>
+            <p>Update each order until collection is completed.</p>
           </div>
         </div>
 
@@ -111,11 +185,9 @@ export default function WorkerDashboard() {
               <button
                 className="btn btn-secondary"
                 disabled={order.status === 'COMPLETED'}
-                onClick={() =>
-                  setOrders(current => current.map(o =>
-                    o.id === order.id ? { ...o, status: nextStatus(o.status) } : o
-                  ))
-                }
+                onClick={() => setOrders((current) => current.map((o) =>
+                  o.id === order.id ? { ...o, status: nextStatus(o.status) } : o
+                ))}
               >
                 {order.status === 'COMPLETED' ? 'Completed' : 'Next Status'}
               </button>
