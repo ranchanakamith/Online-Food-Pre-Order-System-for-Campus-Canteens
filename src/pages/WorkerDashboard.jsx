@@ -1,84 +1,70 @@
 import { useMemo, useState } from 'react'
-
-const initialFood = [
-  { id: 1, name: 'Chicken Fried Rice', price: 100, target: 6, prepared: 4, sold: 2, enabled: true },
-  { id: 2, name: 'Fish Rice', price: 600, target: 70, prepared: 60, sold: 48, enabled: true },
-  { id: 3, name: 'Vegetable Rice', price: 500, target: 40, prepared: 35, sold: 27, enabled: true },
-]
-
-const initialOrders = [
-  { id: 'CB1023', student: 'IT20231234', items: 'Chicken Fried Rice ×1, Iced Coffee ×2', pickup: '12:30 PM', status: 'PREPARING' },
-  { id: 'CB1024', student: 'IT20231456', items: 'Chicken Fried Rice ×2', pickup: '12:45 PM', status: 'PENDING' },
-  { id: 'CB1025', student: 'IT20231502', items: 'Vegetable Rice ×1', pickup: '1:00 PM', status: 'READY' },
-]
-
-const statusSequence = ['PENDING', 'ACCEPTED', 'PREPARING', 'READY', 'COMPLETED']
+import { useFood } from '../context/FoodContext'
+import { useOrders, statusSequence, statusLabels } from '../context/OrderContext'
 
 const actionLabels = {
   PENDING: 'Accept Order',
   ACCEPTED: 'Start Preparing',
   PREPARING: 'Mark Ready',
   READY: 'Complete Order',
-  COMPLETED: 'Completed',
+  COMPLETED: 'Completed ✓',
+  CANCELLED: 'Cancelled',
 }
 
 export default function WorkerDashboard() {
-  const [foods, setFoods] = useState(initialFood)
-  const [orders, setOrders] = useState(initialOrders)
+  const { foods, updateFoodStock } = useFood()
+  const { orders, advanceOrderStatus } = useOrders()
   const [savedFoodId, setSavedFoodId] = useState(null)
+  const [orderFilter, setOrderFilter] = useState('active')
+
+  // Filter food items relevant to Main Canteen (or all campus foods)
+  const canteenFoods = useMemo(() => {
+    return foods.filter((f) => !f.canteenIds || f.canteenIds.includes(1))
+  }, [foods])
 
   const summary = useMemo(() => {
-    const prepared = foods.reduce((sum, food) => sum + food.prepared, 0)
-    const sold = foods.reduce((sum, food) => sum + food.sold, 0)
-    const available = foods.reduce((sum, food) => sum + Math.max(food.prepared - food.sold, 0), 0)
-    const waitingOrders = orders.filter((order) => !['READY', 'COMPLETED'].includes(order.status)).length
+    const prepared = canteenFoods.reduce((sum, food) => sum + (food.prepared || 0), 0)
+    const sold = canteenFoods.reduce((sum, food) => sum + (food.sold || 0), 0)
+    const available = canteenFoods.reduce(
+      (sum, food) => sum + Math.max((food.prepared || 0) - (food.sold || 0), 0),
+      0
+    )
+    const waitingOrders = orders.filter(
+      (order) => !['READY', 'COMPLETED', 'CANCELLED'].includes(order.status)
+    ).length
 
     return { prepared, sold, available, waitingOrders }
-  }, [foods, orders])
+  }, [canteenFoods, orders])
 
-  const updateFood = (id, field, value) => {
-    setFoods((current) => current.map((food) => {
-      if (food.id !== id) return food
-
-      if (field === 'enabled') {
-        return { ...food, enabled: value }
-      }
-
-      const numericValue = Math.max(0, Number(value) || 0)
-      const updated = { ...food, [field]: numericValue }
-
-      if (field === 'sold' && numericValue > updated.prepared) {
-        updated.sold = updated.prepared
-      }
-
-      return updated
-    }))
-  }
+  const filteredOrders = useMemo(() => {
+    if (orderFilter === 'active') {
+      return orders.filter((o) => !['COMPLETED', 'CANCELLED'].includes(o.status))
+    }
+    if (orderFilter === 'completed') {
+      return orders.filter((o) => o.status === 'COMPLETED')
+    }
+    return orders
+  }, [orders, orderFilter])
 
   const saveFood = (id) => {
     setSavedFoodId(id)
-    window.setTimeout(() => setSavedFoodId(null), 1200)
-  }
-
-  const advanceOrder = (id) => {
-    setOrders((current) => current.map((order) => {
-      if (order.id !== id || order.status === 'COMPLETED') return order
-      const currentIndex = statusSequence.indexOf(order.status)
-      return { ...order, status: statusSequence[currentIndex + 1] }
-    }))
+    window.setTimeout(() => setSavedFoodId(null), 1400)
   }
 
   return (
     <section className="worker-page container">
       <header className="worker-hero">
         <div>
-          <span className="eyebrow">Worker Portal</span>
-          <h1>Main Canteen</h1>
-          <p>Update today's food stock and complete student orders from one simple dashboard.</p>
+          <span className="eyebrow">Worker & Kitchen Portal</span>
+          <h1>Main Canteen Kitchen</h1>
+          <p>
+            Manage live food stock portions, prices, and process student pre-orders
+            in real time.
+          </p>
         </div>
         <div className="worker-shift-badge">
           <span className="worker-live-dot" />
-          Canteen Open
+          Kitchen Live & Accepting Orders
         </div>
       </header>
 
@@ -86,39 +72,44 @@ export default function WorkerDashboard() {
         <article className="worker-summary-card primary">
           <span>Available now</span>
           <strong>{summary.available}</strong>
-          <small>food portions left</small>
+          <small>portions left to sell</small>
         </article>
         <article className="worker-summary-card">
           <span>Orders waiting</span>
-          <strong>{summary.waitingOrders}</strong>
-          <small>need worker attention</small>
+          <strong className="text-warn">{summary.waitingOrders}</strong>
+          <small>need kitchen attention</small>
         </article>
         <article className="worker-summary-card">
           <span>Prepared today</span>
           <strong>{summary.prepared}</strong>
-          <small>total portions</small>
+          <small>total cooked portions</small>
         </article>
         <article className="worker-summary-card">
           <span>Sold today</span>
           <strong>{summary.sold}</strong>
-          <small>total portions</small>
+          <small>total portions served</small>
         </article>
       </section>
 
       <section className="worker-section">
         <div className="worker-section-heading">
           <div>
-            <span className="eyebrow">Food Stock</span>
-            <h2>Today's food</h2>
-            <p>Change only the values you need. Available quantity is calculated automatically.</p>
+            <span className="eyebrow">Daily Food Inventory</span>
+            <h2>Today's Menu Stock</h2>
+            <p>
+              Changes made here instantly update the student menu. Toggle availability
+              when an item runs out.
+            </p>
           </div>
         </div>
 
         <div className="worker-food-grid">
-          {foods.map((food) => {
-            const availableQty = Math.max(food.prepared - food.sold, 0)
-            const needToPrepare = Math.max(food.target - food.prepared, 0)
-            const isAvailable = food.enabled && availableQty > 0
+          {canteenFoods.map((food) => {
+            const availableQty = Math.max((food.prepared || 0) - (food.sold || 0), 0)
+            const targetQty = food.target || 0
+            const preparedQty = food.prepared || 0
+            const needToPrepare = Math.max(targetQty - preparedQty, 0)
+            const isAvailable = food.enabled !== false && availableQty > 0
 
             return (
               <article className="worker-food-card" key={food.id}>
@@ -131,8 +122,8 @@ export default function WorkerDashboard() {
                   <button
                     type="button"
                     className={`worker-status-toggle ${isAvailable ? 'is-available' : 'is-sold-out'}`}
-                    onClick={() => updateFood(food.id, 'enabled', !food.enabled)}
-                    disabled={availableQty === 0}
+                    onClick={() => updateFoodStock(food.id, 'enabled', !food.enabled)}
+                    title={isAvailable ? 'Click to mark as Sold Out' : 'Click to enable availability'}
                   >
                     <span />
                     {isAvailable ? 'Available' : 'Sold Out'}
@@ -146,12 +137,12 @@ export default function WorkerDashboard() {
                   </div>
                   <div className="worker-stock-divider" />
                   <div>
-                    <strong>{food.sold}</strong>
+                    <strong>{food.sold || 0}</strong>
                     <span>Sold</span>
                   </div>
                   <div className="worker-stock-divider" />
                   <div>
-                    <strong>{food.prepared}</strong>
+                    <strong>{preparedQty}</strong>
                     <span>Prepared</span>
                   </div>
                 </div>
@@ -163,17 +154,17 @@ export default function WorkerDashboard() {
                       type="number"
                       min="0"
                       value={food.price}
-                      onChange={(e) => updateFood(food.id, 'price', e.target.value)}
+                      onChange={(e) => updateFoodStock(food.id, 'price', e.target.value)}
                     />
                   </label>
 
                   <label>
-                    Today's Target
+                    Target
                     <input
                       type="number"
                       min="0"
-                      value={food.target}
-                      onChange={(e) => updateFood(food.id, 'target', e.target.value)}
+                      value={food.target || 0}
+                      onChange={(e) => updateFoodStock(food.id, 'target', e.target.value)}
                     />
                   </label>
 
@@ -182,8 +173,8 @@ export default function WorkerDashboard() {
                     <input
                       type="number"
                       min="0"
-                      value={food.prepared}
-                      onChange={(e) => updateFood(food.id, 'prepared', e.target.value)}
+                      value={food.prepared || 0}
+                      onChange={(e) => updateFoodStock(food.id, 'prepared', e.target.value)}
                     />
                   </label>
 
@@ -192,21 +183,25 @@ export default function WorkerDashboard() {
                     <input
                       type="number"
                       min="0"
-                      max={food.prepared}
-                      value={food.sold}
-                      onChange={(e) => updateFood(food.id, 'sold', e.target.value)}
+                      max={food.prepared || 0}
+                      value={food.sold || 0}
+                      onChange={(e) => updateFoodStock(food.id, 'sold', e.target.value)}
                     />
                   </label>
                 </div>
 
                 <div className={`worker-prepare-message ${needToPrepare > 0 ? 'needs-more' : 'enough'}`}>
                   {needToPrepare > 0
-                    ? `Prepare ${needToPrepare} more to reach today's target.`
-                    : 'Target reached. No additional preparation needed.'}
+                    ? `⚠️ Prepare ${needToPrepare} more to hit target.`
+                    : '✓ Target reached. No additional preparation needed.'}
                 </div>
 
-                <button className="btn btn-primary full-width" onClick={() => saveFood(food.id)}>
-                  {savedFoodId === food.id ? 'Changes Saved' : 'Save Changes'}
+                <button
+                  type="button"
+                  className="btn btn-primary full-width"
+                  onClick={() => saveFood(food.id)}
+                >
+                  {savedFoodId === food.id ? '✓ Changes Saved' : 'Save Stock'}
                 </button>
               </article>
             )
@@ -218,47 +213,103 @@ export default function WorkerDashboard() {
         <div className="worker-section-heading">
           <div>
             <span className="eyebrow">Order Queue</span>
-            <h2>Student orders</h2>
-            <p>The action button always shows what you should do next.</p>
+            <h2>Live Student Orders ({filteredOrders.length})</h2>
+            <p>Advance each order as kitchen preparation progresses.</p>
+          </div>
+
+          <div className="worker-order-filters">
+            <button
+              type="button"
+              className={`filter-chip ${orderFilter === 'active' ? 'active' : ''}`}
+              onClick={() => setOrderFilter('active')}
+            >
+              Active ({orders.filter((o) => !['COMPLETED', 'CANCELLED'].includes(o.status)).length})
+            </button>
+            <button
+              type="button"
+              className={`filter-chip ${orderFilter === 'all' ? 'active' : ''}`}
+              onClick={() => setOrderFilter('all')}
+            >
+              All Orders ({orders.length})
+            </button>
+            <button
+              type="button"
+              className={`filter-chip ${orderFilter === 'completed' ? 'active' : ''}`}
+              onClick={() => setOrderFilter('completed')}
+            >
+              Completed ({orders.filter((o) => o.status === 'COMPLETED').length})
+            </button>
           </div>
         </div>
 
-        <div className="worker-order-list">
-          {orders.map((order) => (
-            <article className="worker-order-card" key={order.id}>
-              <div className="worker-order-main">
-                <div className="worker-order-id">
-                  <span>Order</span>
-                  <strong>#{order.id}</strong>
-                </div>
+        {filteredOrders.length === 0 ? (
+          <div className="panel empty-search-panel">
+            <p>No orders currently in this queue.</p>
+          </div>
+        ) : (
+          <div className="worker-order-list">
+            {filteredOrders.map((order) => {
+              const isCompleted = order.status === 'COMPLETED'
+              const isCancelled = order.status === 'CANCELLED'
 
-                <div className="worker-order-details">
-                  <h3>{order.items}</h3>
-                  <p>Student {order.student}</p>
-                </div>
-              </div>
+              return (
+                <article className="worker-order-card" key={order.id}>
+                  <div className="worker-order-main">
+                    <div className="worker-order-id">
+                      <span>Order</span>
+                      <strong>#{order.id}</strong>
+                      <span className="order-dining-type">
+                        {order.orderType === 'Dine-in' ? '🍽️ Dine-in' : '🥡 Takeaway'}
+                      </span>
+                    </div>
 
-              <div className="worker-order-side">
-                <div className="worker-pickup-time">
-                  <span>Pickup</span>
-                  <strong>{order.pickup}</strong>
-                </div>
+                    <div className="worker-order-details">
+                      <h3>
+                        {order.itemsSummary ||
+                          order.items?.map((i) => `${i.name} ×${i.quantity}`).join(', ')}
+                      </h3>
+                      <p>
+                        Student ID: <strong>{order.student}</strong> · Total: Rs. {order.total} (
+                        {order.paymentMethod || 'Pay at Counter'})
+                      </p>
+                      {order.notes && (
+                        <p className="kitchen-special-instruction">
+                          ⚠️ Note: {order.notes}
+                        </p>
+                      )}
+                    </div>
+                  </div>
 
-                <span className={`order-status status-${order.status.toLowerCase()}`}>
-                  {order.status}
-                </span>
+                  <div className="worker-order-side">
+                    <div className="worker-pickup-time">
+                      <span>Target Pickup</span>
+                      <strong>{order.pickup}</strong>
+                    </div>
 
-                <button
-                  className={order.status === 'COMPLETED' ? 'btn btn-secondary' : 'btn btn-primary'}
-                  disabled={order.status === 'COMPLETED'}
-                  onClick={() => advanceOrder(order.id)}
-                >
-                  {actionLabels[order.status]}
-                </button>
-              </div>
-            </article>
-          ))}
-        </div>
+                    <span className={`order-status status-${(order.status || 'pending').toLowerCase()}`}>
+                      ● {order.status}
+                    </span>
+
+                    <button
+                      type="button"
+                      className={
+                        isCompleted
+                          ? 'btn btn-secondary'
+                          : isCancelled
+                          ? 'btn btn-secondary'
+                          : 'btn btn-primary'
+                      }
+                      disabled={isCompleted || isCancelled}
+                      onClick={() => advanceOrderStatus(order.id)}
+                    >
+                      {actionLabels[order.status] || 'Update Status'}
+                    </button>
+                  </div>
+                </article>
+              )
+            })}
+          </div>
+        )}
       </section>
     </section>
   )

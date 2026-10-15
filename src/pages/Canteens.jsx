@@ -1,40 +1,107 @@
+import { useState, useMemo } from 'react'
 import { Link } from 'react-router-dom'
-import { canteens } from '../data/mockData'
+import { useFood } from '../context/FoodContext'
 
 export default function Canteens() {
+  const { canteens, foods } = useFood()
+  const [searchTerm, setSearchTerm] = useState('')
+
+  const activeCanteens = useMemo(() => {
+    return canteens.filter((c) => c.active !== false)
+  }, [canteens])
+
+  const filteredCanteens = useMemo(() => {
+    if (!searchTerm.trim()) return activeCanteens
+    const q = searchTerm.toLowerCase()
+    return activeCanteens.filter(
+      (c) =>
+        c.name.toLowerCase().includes(q) ||
+        c.location.toLowerCase().includes(q) ||
+        (c.description && c.description.toLowerCase().includes(q))
+    )
+  }, [activeCanteens, searchTerm])
+
+  const getFoodCountForCanteen = (canteenId) => {
+    return foods.filter(
+      (f) => !f.canteenIds || f.canteenIds.length === 0 || f.canteenIds.includes(canteenId)
+    ).length
+  }
+
   return (
     <section className="section container page-top">
       <div className="section-heading">
         <div>
           <span className="eyebrow">Campus dining</span>
-          <h1>Choose a canteen</h1>
-          <p>See what is open and order before you arrive.</p>
+          <h1>Choose a Canteen ({activeCanteens.length})</h1>
+          <p>Explore campus dining halls, view menus, and pre-order meals before you arrive.</p>
         </div>
       </div>
 
       <div className="search-bar">
-        <input placeholder="Search canteens..." />
-        <button className="btn btn-primary">Search</button>
+        <input
+          placeholder="Search by canteen name, location, or cuisine..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+        />
+        {searchTerm ? (
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={() => setSearchTerm('')}
+          >
+            Clear
+          </button>
+        ) : (
+          <button type="button" className="btn btn-primary">
+            Search
+          </button>
+        )}
       </div>
 
-      <div className="card-grid three">
-        {canteens.map((canteen) => (
-          <Link to={`/canteens/${canteen.id}/menu`} className="canteen-card" key={canteen.id}>
-            <img src={canteen.image} alt={canteen.name} />
-            <div className="card-content">
-              <div className="card-row">
-                <h3>{canteen.name}</h3>
-                <span className="status-open">{canteen.status}</span>
-              </div>
-              <p>{canteen.location}</p>
-              <div className="meta-row">
-                <span>{canteen.eta}</span>
-                <span>View Menu →</span>
-              </div>
-            </div>
-          </Link>
-        ))}
-      </div>
+      {filteredCanteens.length === 0 ? (
+        <div className="panel empty-search-panel">
+          <h3>No canteens found</h3>
+          <p>We couldn't find any canteen matching "{searchTerm}".</p>
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={() => setSearchTerm('')}
+          >
+            Show All Canteens
+          </button>
+        </div>
+      ) : (
+        <div className="card-grid three">
+          {filteredCanteens.map((canteen) => {
+            const foodCount = getFoodCountForCanteen(canteen.id)
+
+            return (
+              <Link
+                to={`/canteens/${canteen.id}/menu`}
+                className="canteen-card"
+                key={canteen.id}
+              >
+                <div className="canteen-card-image-wrap">
+                  <img src={canteen.image} alt={canteen.name} loading="lazy" />
+                  <span className="canteen-badge-open">{canteen.status || 'Open'}</span>
+                </div>
+                <div className="card-content">
+                  <div className="card-row">
+                    <h3>{canteen.name}</h3>
+                    <span className="canteen-eta-pill">⚡ {canteen.eta}</span>
+                  </div>
+                  <p className="canteen-card-loc">📍 {canteen.location}</p>
+                  <p className="canteen-card-desc">{canteen.description}</p>
+                  <div className="meta-row">
+                    <span className="food-count-tag">{foodCount} menu items</span>
+                    <span className="text-link">View Menu →</span>
+                  </div>
+                </div>
+              </Link>
+            )
+          })}
+        </div>
+      )}
     </section>
   )
 }

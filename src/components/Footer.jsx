@@ -1,4 +1,4 @@
-import { useLocation } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 
 export default function Footer() {
   const location = useLocation()
@@ -11,22 +11,34 @@ export default function Footer() {
     <footer className="footer">
       <div className="container footer-grid">
         <div>
-          <h3>CampusBite</h3>
-          <p>Pre-order your campus meals and spend less time waiting in line.</p>
+          <div className="footer-brand">
+            <span className="brand-mark small">CB</span>
+            <h3>CampusBite</h3>
+          </div>
+          <p>
+            An intelligent online pre-order system designed for university campuses.
+            Eliminate long lunch queues, save valuable lecture intervals, and enjoy fresh,
+            hygienic campus meals.
+          </p>
         </div>
         <div>
-          <h4>Quick Links</h4>
-          <a href="/canteens">Canteens</a>
-          <a href="/orders">My Orders</a>
-          <a href="/login">Login</a>
+          <h4>Student Portal</h4>
+          <Link to="/student">Dashboard</Link>
+          <Link to="/canteens">Campus Canteens</Link>
+          <Link to="/orders">Order Tracking</Link>
+          <Link to="/cart">My Cart</Link>
         </div>
         <div>
-          <h4>Access</h4>
-          <a href="/login">Worker Login</a>
-          <a href="/login">Admin Login</a>
+          <h4>Staff & Management</h4>
+          <Link to="/worker">Canteen Kitchen Portal</Link>
+          <Link to="/admin">Campus Admin Portal</Link>
+          <Link to="/login">Sign In / Switch Role</Link>
         </div>
       </div>
-      <div className="container footer-bottom">© 2026 CampusBite. University project demo.</div>
+      <div className="container footer-bottom">
+        <span>© 2026 CampusBite · University Web Development Module Project</span>
+        <span className="footer-status-pill">● System Operational</span>
+      </div>
     </footer>
   )
 }
