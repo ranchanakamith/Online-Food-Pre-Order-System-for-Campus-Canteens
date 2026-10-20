@@ -98,18 +98,27 @@ export function FoodProvider({ children }) {
   const addFood = (foodData) => {
     const newFood = {
       id: Date.now(),
-      target: 30,
-      prepared: 30,
+      name: foodData.name || 'New Meal Item',
+      price: Math.max(0, Number(foodData.price) || 100),
+      target: Math.max(0, Number(foodData.target) || 30),
+      prepared: Math.max(0, Number(foodData.prepared) || 30),
       sold: 0,
       enabled: true,
-      canteenIds: [1],
+      category: foodData.category || 'Lunch',
+      description: foodData.description || 'Freshly prepared campus canteen meal.',
+      tag: foodData.tag || 'Fresh',
+      canteenIds: foodData.canteenIds && foodData.canteenIds.length > 0 ? foodData.canteenIds : [1],
       image:
-        foodData.image ||
-        'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=1000&q=80',
-      ...foodData,
+        foodData.image && foodData.image.trim() !== ''
+          ? foodData.image
+          : 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=1000&q=80',
     }
-    setFoods((current) => [...current, newFood])
+    setFoods((current) => [newFood, ...current])
     return newFood
+  }
+
+  const removeFood = (id) => {
+    setFoods((current) => current.filter((f) => f.id !== id))
   }
 
   return (
@@ -122,6 +131,7 @@ export function FoodProvider({ children }) {
         toggleCanteen,
         removeCanteen,
         addFood,
+        removeFood,
       }}
     >
       {children}

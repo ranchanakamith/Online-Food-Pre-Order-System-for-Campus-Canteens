@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useFood } from '../context/FoodContext'
-import { useOrders, statusSequence, statusLabels } from '../context/OrderContext'
+import { useOrders } from '../context/OrderContext'
 
 const actionLabels = {
   PENDING: 'Accept Order',
@@ -11,11 +11,37 @@ const actionLabels = {
   CANCELLED: 'Cancelled',
 }
 
+const photoPresets = [
+  { label: '🍛 Rice & Curry', url: 'https://images.unsplash.com/photo-1546833999-b9f581a1996d?auto=format&fit=crop&w=1000&q=80' },
+  { label: '🍚 Fried Rice', url: 'https://images.unsplash.com/photo-1512058564366-18510be2db19?auto=format&fit=crop&w=1000&q=80' },
+  { label: '🥘 Kottu / Roti', url: 'https://images.unsplash.com/photo-1601050690597-df0568f70950?auto=format&fit=crop&w=1000&q=80' },
+  { label: '🥪 Sandwich', url: 'https://images.unsplash.com/photo-1528735602780-2552fd46c7af?auto=format&fit=crop&w=1000&q=80' },
+  { label: '🍔 Burger', url: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=1000&q=80' },
+  { label: '🥐 Pastry Roll', url: 'https://images.unsplash.com/photo-1626777552726-4a6b54c97e46?auto=format&fit=crop&w=1000&q=80' },
+  { label: '🧃 Fruit Juice', url: 'https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?auto=format&fit=crop&w=1000&q=80' },
+  { label: '☕ Iced Coffee', url: 'https://images.unsplash.com/photo-1461023058943-07fcbe16d735?auto=format&fit=crop&w=1000&q=80' },
+  { label: '🧁 Sweet Muffin', url: 'https://images.unsplash.com/photo-1607958996333-41aef7caef4b?auto=format&fit=crop&w=1000&q=80' },
+]
+
 export default function WorkerDashboard() {
-  const { foods, updateFoodStock } = useFood()
+  const { foods, updateFoodStock, addFood, removeFood } = useFood()
   const { orders, advanceOrderStatus } = useOrders()
   const [savedFoodId, setSavedFoodId] = useState(null)
   const [orderFilter, setOrderFilter] = useState('active')
+
+  // Modal and new food form states
+  const [showAddModal, setShowAddModal] = useState(false)
+  const [successAlert, setSuccessAlert] = useState('')
+  const [newFood, setNewFood] = useState({
+    name: '',
+    category: 'Lunch',
+    price: 350,
+    target: 30,
+    prepared: 30,
+    description: '',
+    tag: 'Fresh',
+    image: photoPresets[0].url,
+  })
 
   // Filter food items relevant to Main Canteen (or all campus foods)
   const canteenFoods = useMemo(() => {
@@ -51,6 +77,47 @@ export default function WorkerDashboard() {
     window.setTimeout(() => setSavedFoodId(null), 1400)
   }
 
+  const handleCreateFood = (e) => {
+    e.preventDefault()
+    if (!newFood.name.trim()) return
+
+    const created = addFood({
+      name: newFood.name.trim(),
+      category: newFood.category,
+      price: Number(newFood.price) || 100,
+      target: Number(newFood.target) || 30,
+      prepared: Number(newFood.prepared) || 30,
+      description: newFood.description.trim() || 'Freshly prepared campus canteen meal.',
+      tag: newFood.tag || 'Fresh',
+      image: newFood.image || photoPresets[0].url,
+      canteenIds: [1],
+    })
+
+    setSuccessAlert(`✓ "${created.name}" added successfully to today's menu!`)
+    setTimeout(() => setSuccessAlert(''), 3500)
+
+    // Reset form & close modal
+    setNewFood({
+      name: '',
+      category: 'Lunch',
+      price: 350,
+      target: 30,
+      prepared: 30,
+      description: '',
+      tag: 'Fresh',
+      image: photoPresets[0].url,
+    })
+    setShowAddModal(false)
+  }
+
+  const handleDeleteFood = (foodId, foodName) => {
+    if (window.confirm(`Are you sure you want to remove "${foodName}" from the menu?`)) {
+      removeFood(foodId)
+      setSuccessAlert(`Removed "${foodName}" from today's menu.`)
+      setTimeout(() => setSuccessAlert(''), 3000)
+    }
+  }
+
   return (
     <section className="worker-page container">
       <header className="worker-hero">
@@ -58,7 +125,7 @@ export default function WorkerDashboard() {
           <span className="eyebrow">Worker & Kitchen Portal</span>
           <h1>Main Canteen Kitchen</h1>
           <p>
-            Manage live food stock portions, prices, and process student pre-orders
+            Manage live food stock portions, prices, add new items, and process student pre-orders
             in real time.
           </p>
         </div>
@@ -91,6 +158,12 @@ export default function WorkerDashboard() {
         </article>
       </section>
 
+      {successAlert && (
+        <div className="worker-notification-banner">
+          {successAlert}
+        </div>
+      )}
+
       <section className="worker-section">
         <div className="worker-section-heading">
           <div>
@@ -101,6 +174,14 @@ export default function WorkerDashboard() {
               when an item runs out.
             </p>
           </div>
+
+          <button
+            type="button"
+            className="btn btn-primary btn-add-food-header"
+            onClick={() => setShowAddModal(true)}
+          >
+            <span>+</span> Add New Food Item
+          </button>
         </div>
 
         <div className="worker-food-grid">
@@ -114,9 +195,19 @@ export default function WorkerDashboard() {
             return (
               <article className="worker-food-card" key={food.id}>
                 <div className="worker-food-card-top">
-                  <div>
-                    <h3>{food.name}</h3>
-                    <p>Rs. {food.price} per portion</p>
+                  <div className="worker-food-title-group">
+                    {food.image && (
+                      <img
+                        src={food.image}
+                        alt={food.name}
+                        className="worker-food-thumb"
+                      />
+                    )}
+                    <div>
+                      <h3>{food.name}</h3>
+                      <p>Rs. {food.price} per portion</p>
+                      <span className="worker-category-tag">{food.category || 'Lunch'}</span>
+                    </div>
                   </div>
 
                   <button
@@ -196,19 +287,192 @@ export default function WorkerDashboard() {
                     : '✓ Target reached. No additional preparation needed.'}
                 </div>
 
-                <button
-                  type="button"
-                  className="btn btn-primary full-width"
-                  onClick={() => saveFood(food.id)}
-                >
-                  {savedFoodId === food.id ? '✓ Changes Saved' : 'Save Stock'}
-                </button>
+                <div className="worker-card-action-row">
+                  <button
+                    type="button"
+                    className="btn btn-primary worker-save-btn flex-1"
+                    onClick={() => saveFood(food.id)}
+                  >
+                    {savedFoodId === food.id ? '✓ Changes Saved' : 'Save Stock'}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-secondary worker-delete-btn"
+                    onClick={() => handleDeleteFood(food.id, food.name)}
+                    title="Remove item from menu"
+                  >
+                    🗑️
+                  </button>
+                </div>
               </article>
             )
           })}
         </div>
       </section>
 
+      {/* --- ADD NEW FOOD MODAL --- */}
+      {showAddModal && (
+        <div className="worker-modal-backdrop" onClick={() => setShowAddModal(false)}>
+          <div className="worker-modal-card" onClick={(e) => e.stopPropagation()}>
+            <div className="worker-modal-header">
+              <div>
+                <span className="eyebrow">Kitchen Menu Management</span>
+                <h2>Add New Food Item</h2>
+                <p>New dishes added here will be immediately available for students to order.</p>
+              </div>
+              <button
+                type="button"
+                className="worker-modal-close"
+                onClick={() => setShowAddModal(false)}
+              >
+                ×
+              </button>
+            </div>
+
+            <form className="form-stack" onSubmit={handleCreateFood}>
+              <div className="form-two-column">
+                <label>
+                  Food Item Name *
+                  <input
+                    type="text"
+                    placeholder="e.g. Chicken Biryani / Egg Roti"
+                    value={newFood.name}
+                    onChange={(e) => setNewFood({ ...newFood, name: e.target.value })}
+                    required
+                  />
+                </label>
+
+                <label>
+                  Meal Category *
+                  <select
+                    value={newFood.category}
+                    onChange={(e) => setNewFood({ ...newFood, category: e.target.value })}
+                  >
+                    <option value="Lunch">Lunch</option>
+                    <option value="Breakfast">Breakfast</option>
+                    <option value="Snacks">Snacks</option>
+                    <option value="Drinks">Drinks</option>
+                  </select>
+                </label>
+              </div>
+
+              <div className="form-three-column">
+                <label>
+                  Price (Rs.) *
+                  <input
+                    type="number"
+                    min="10"
+                    placeholder="e.g. 450"
+                    value={newFood.price}
+                    onChange={(e) => setNewFood({ ...newFood, price: e.target.value })}
+                    required
+                  />
+                </label>
+
+                <label>
+                  Today's Target
+                  <input
+                    type="number"
+                    min="1"
+                    placeholder="e.g. 40"
+                    value={newFood.target}
+                    onChange={(e) => setNewFood({ ...newFood, target: e.target.value })}
+                    required
+                  />
+                </label>
+
+                <label>
+                  Initially Prepared
+                  <input
+                    type="number"
+                    min="0"
+                    placeholder="e.g. 40"
+                    value={newFood.prepared}
+                    onChange={(e) => setNewFood({ ...newFood, prepared: e.target.value })}
+                    required
+                  />
+                </label>
+              </div>
+
+              <div className="form-two-column">
+                <label>
+                  Highlight Tag
+                  <select
+                    value={newFood.tag}
+                    onChange={(e) => setNewFood({ ...newFood, tag: e.target.value })}
+                  >
+                    <option value="Fresh">Fresh</option>
+                    <option value="Popular">Popular</option>
+                    <option value="Bestseller">Bestseller</option>
+                    <option value="Chef's Pick">Chef's Pick</option>
+                    <option value="Vegetarian">Vegetarian</option>
+                    <option value="Special">Today's Special</option>
+                    <option value="Quick Bite">Quick Bite</option>
+                  </select>
+                </label>
+
+                <label>
+                  Short Description
+                  <input
+                    type="text"
+                    placeholder="e.g. Fragrant rice with spices and tender meat"
+                    value={newFood.description}
+                    onChange={(e) => setNewFood({ ...newFood, description: e.target.value })}
+                  />
+                </label>
+              </div>
+
+              <div className="preset-images-section">
+                <label>Quick Preset Food Photo (Click to select):</label>
+                <div className="photo-preset-chips">
+                  {photoPresets.map((preset) => (
+                    <button
+                      key={preset.label}
+                      type="button"
+                      className={`preset-chip ${newFood.image === preset.url ? 'active' : ''}`}
+                      onClick={() => setNewFood({ ...newFood, image: preset.url })}
+                    >
+                      {preset.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <label>
+                Or Custom Image URL
+                <input
+                  type="url"
+                  placeholder="https://images.unsplash.com/..."
+                  value={newFood.image}
+                  onChange={(e) => setNewFood({ ...newFood, image: e.target.value })}
+                />
+              </label>
+
+              {newFood.image && (
+                <div className="modal-image-preview">
+                  <span>Photo Preview:</span>
+                  <img src={newFood.image} alt="Preview" />
+                </div>
+              )}
+
+              <div className="worker-modal-actions">
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => setShowAddModal(false)}
+                >
+                  Cancel
+                </button>
+                <button type="submit" className="btn btn-primary btn-large">
+                  ✓ Add Food to Menu
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* --- LIVE ORDER QUEUE --- */}
       <section className="worker-section worker-orders-section">
         <div className="worker-section-heading">
           <div>
