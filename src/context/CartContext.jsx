@@ -3,6 +3,7 @@ import { createContext, useContext, useState, useEffect } from 'react'
 const CartContext = createContext()
 
 export function CartProvider({ children }) {
+  // Start with empty cart so no previous canteen items contaminate orders
   const [cart, setCart] = useState(() => {
     try {
       const saved = localStorage.getItem('campusbite_cart')
@@ -10,31 +11,7 @@ export function CartProvider({ children }) {
     } catch (e) {
       console.error(e)
     }
-    // Pre-populate with 2 realistic items initially so cart is not empty on first load if user visits directly
-    return [
-      {
-        id: 1,
-        name: 'Chicken Fried Rice',
-        price: 650,
-        category: 'Lunch',
-        canteenId: 1,
-        canteenName: 'Main Canteen',
-        image: 'https://images.unsplash.com/photo-1512058564366-18510be2db19?auto=format&fit=crop&w=1000&q=80',
-        quantity: 1,
-        instructions: 'Less chili paste',
-      },
-      {
-        id: 8,
-        name: 'Iced Coffee Deluxe',
-        price: 300,
-        category: 'Drinks',
-        canteenId: 1,
-        canteenName: 'Main Canteen',
-        image: 'https://images.unsplash.com/photo-1461023058943-07fcbe16d735?auto=format&fit=crop&w=1000&q=80',
-        quantity: 2,
-        instructions: '',
-      },
-    ]
+    return []
   })
 
   const [toast, setToast] = useState(null)
@@ -51,11 +28,44 @@ export function CartProvider({ children }) {
     setToast({ message, type })
     setTimeout(() => {
       setToast(null)
-    }, 3200)
+    }, 3500)
   }
 
   const addToCart = (food, canteen = null, qty = 1) => {
+    // Determine the exact target canteen for this item
+    const targetCanteenId = canteen
+      ? Number(canteen.id)
+      : (food.canteenIds && food.canteenIds.length > 0 ? Number(food.canteenIds[0]) : 1)
+
+    const targetCanteenName = canteen
+      ? canteen.name
+      : (targetCanteenId === 2 ? 'Engineering Canteen' : targetCanteenId === 3 ? 'Student Centre Cafe' : 'Main Canteen')
+
     setCart((prev) => {
+      // 1. Single-Canteen Order Rule:
+      // If cart already has items from a different canteen, clear previous items and start fresh for this canteen
+      const existingCanteenId = prev[0]?.canteenId
+      if (prev.length > 0 && existingCanteenId && Number(existingCanteenId) !== targetCanteenId) {
+        showToast(
+          `Switched to ${targetCanteenName}. Previous cart items from ${prev[0].canteenName} cleared.`,
+          'info'
+        )
+        return [
+          {
+            id: food.id,
+            name: food.name,
+            price: Number(food.price),
+            category: food.category,
+            image: food.image,
+            canteenId: targetCanteenId,
+            canteenName: targetCanteenName,
+            quantity: qty,
+            instructions: '',
+          },
+        ]
+      }
+
+      // 2. Same Canteen: If item already exists, increment quantity
       const existing = prev.find((item) => item.id === food.id)
       if (existing) {
         return prev.map((item) =>
@@ -64,22 +74,25 @@ export function CartProvider({ children }) {
             : item
         )
       }
+
+      // 3. New item for this canteen
       return [
         ...prev,
         {
           id: food.id,
           name: food.name,
-          price: food.price,
+          price: Number(food.price),
           category: food.category,
           image: food.image,
-          canteenId: canteen ? canteen.id : (food.canteenIds?.[0] || 1),
-          canteenName: canteen ? canteen.name : 'Main Canteen',
+          canteenId: targetCanteenId,
+          canteenName: targetCanteenName,
           quantity: qty,
           instructions: '',
         },
       ]
     })
-    showToast(`Added ${food.name} to cart!`)
+
+    showToast(`Added ${food.name} to ${targetCanteenName} cart!`)
   }
 
   const updateQuantity = (itemId, newQty) => {
@@ -110,9 +123,24 @@ export function CartProvider({ children }) {
     )
   }
 
+  const changeCartCanteen = (newCanteenId, newCanteenName) => {
+    setCart((prev) =>
+      prev.map((item) => ({
+        ...item,
+        canteenId: Number(newCanteenId),
+        canteenName: newCanteenName,
+      }))
+    )
+    showToast(`Order assigned to ${newCanteenName}`, 'info')
+  }
+
   const clearCart = () => {
     setCart([])
   }
+
+  const activeCartCanteen = cart.length > 0
+    ? { id: Number(cart[0].canteenId), name: cart[0].canteenName }
+    : null
 
   const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0)
   const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0)
@@ -123,10 +151,12 @@ export function CartProvider({ children }) {
     <CartContext.Provider
       value={{
         cart,
+        activeCartCanteen,
         addToCart,
         updateQuantity,
         removeFromCart,
         updateItemInstructions,
+        changeCartCanteen,
         clearCart,
         totalItems,
         subtotal,

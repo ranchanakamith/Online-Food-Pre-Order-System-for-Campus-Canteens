@@ -2631,3 +2631,307 @@ input:focus, select:focus {
     padding: 22px 18px;
   }
 }
+
+
+/* --- Canteen Facility Worker Isolation & Access Control --- */
+.worker-isolation-badge {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 16px;
+  padding: 12px 18px;
+  margin-bottom: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.isolation-text {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.88rem;
+  color: #166534;
+}
+
+.isolation-lock-icon {
+  font-size: 1.15rem;
+}
+
+.canteen-eval-switch {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.eval-label {
+  font-size: 0.78rem;
+  font-weight: 750;
+  color: #475569;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.eval-select {
+  padding: 6px 10px;
+  font-size: 0.82rem;
+  font-weight: 750;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #0f172a;
+  cursor: pointer;
+}
+
+.worker-meta-details {
+  margin-top: 10px;
+}
+
+.worker-staff-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #f1f5f2;
+  border: 1px solid #dce6df;
+  padding: 5px 12px;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  color: #27472f;
+}
+
+/* Access Denied Card (When student visits /worker) */
+.access-denied-card {
+  text-align: center;
+  padding: 50px 24px;
+  max-width: 650px;
+  margin: 40px auto;
+  border: 1px solid #fee2e2;
+  box-shadow: 0 16px 40px rgba(185, 28, 28, 0.08);
+}
+
+.access-denied-icon {
+  font-size: 3.5rem;
+  margin-bottom: 8px;
+}
+
+.access-denied-card h2 {
+  color: #991b1b;
+  margin: 0 0 8px;
+  font-size: 1.7rem;
+}
+
+.access-denied-card p {
+  color: #64748b;
+  margin: 0 0 24px;
+  line-height: 1.6;
+}
+
+.access-denied-canteen-list {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 18px;
+  margin-bottom: 24px;
+  text-align: left;
+}
+
+.access-denied-canteen-list span {
+  display: block;
+  font-size: 0.82rem;
+  font-weight: 750;
+  color: #475569;
+  margin-bottom: 12px;
+}
+
+.quick-access-buttons {
+  display: grid;
+  gap: 8px;
+}
+
+.access-denied-footer {
+  display: flex;
+  justify-content: center;
+}
+
+/* Quick Login Stacked Layout */
+.quick-login-buttons-stacked {
+  display: grid;
+  gap: 10px;
+}
+
+.quick-worker-group {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 10px;
+}
+
+.quick-group-label {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 8px;
+}
+
+.quick-worker-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+
+.input-helper-text {
+  font-size: 0.78rem;
+  color: #64748b;
+  margin-top: 4px;
+}
+
+.input-helper-text code {
+  background: #f1f5f9;
+  padding: 2px 5px;
+  border-radius: 4px;
+  color: #0f172a;
+}
+
+@media (max-width: 640px) {
+  .quick-worker-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .worker-isolation-badge {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+/* ==========================================================================
+   Order Kitchen Destination & Single-Canteen Routing Enhancements
+   ========================================================================== */
+
+.cart-destination-banner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: linear-gradient(135deg, #eff6ff 0%, #e0f2fe 100%);
+  border: 1.5px solid #bae6fd;
+  border-radius: 14px;
+  padding: 16px 20px;
+  margin-bottom: 24px;
+  gap: 16px;
+  box-shadow: 0 4px 12px rgba(2, 132, 199, 0.08);
+}
+
+.destination-info {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.destination-icon {
+  font-size: 2.2rem;
+  line-height: 1;
+}
+
+.destination-eyebrow {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #0284c7;
+  margin-bottom: 2px;
+}
+
+.destination-info h2 {
+  font-size: 1.25rem;
+  margin: 0 0 2px 0;
+  color: #0369a1;
+  font-weight: 800;
+}
+
+.destination-info p {
+  margin: 0;
+  font-size: 0.88rem;
+  color: #334155;
+}
+
+.destination-tag span {
+  display: inline-block;
+  background: #0284c7;
+  color: #ffffff;
+  font-size: 0.8rem;
+  font-weight: 750;
+  padding: 8px 14px;
+  border-radius: 999px;
+  white-space: nowrap;
+  box-shadow: 0 2px 6px rgba(2, 132, 199, 0.25);
+}
+
+/* Cart Canteen Selector in Order Summary */
+.cart-canteen-selector-box {
+  background: #f8fafc;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 14px;
+  margin-bottom: 18px;
+}
+
+.cart-canteen-selector-box label {
+  display: block;
+  font-size: 0.82rem;
+  font-weight: 750;
+  color: #1e293b;
+  margin-bottom: 6px;
+}
+
+.cart-canteen-select {
+  width: 100%;
+  margin-top: 6px;
+  padding: 10px 12px;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  background: #ffffff;
+  color: #0f172a;
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.cart-canteen-select:focus {
+  border-color: #0284c7;
+  box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.15);
+}
+
+.selector-tip {
+  display: block;
+  margin-top: 8px;
+  font-size: 0.77rem;
+  color: #64748b;
+  line-height: 1.4;
+}
+
+/* Food Canteen Source Tag on Student Dashboard & Menus */
+.food-canteen-source-tag {
+  display: inline-block;
+  font-size: 0.74rem;
+  font-weight: 650;
+  color: #0284c7;
+  background: #f0f9ff;
+  padding: 3px 8px;
+  border-radius: 6px;
+  border: 1px solid #bae6fd;
+  margin-left: auto;
+}
+
+@media (max-width: 640px) {
+  .cart-destination-banner {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+

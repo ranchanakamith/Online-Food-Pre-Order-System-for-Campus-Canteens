@@ -2,6 +2,33 @@ import { createContext, useContext, useState, useEffect } from 'react'
 
 const AuthContext = createContext()
 
+export const canteenStaffAccounts = [
+  {
+    id: 'worker001',
+    name: 'Kamal Jayawardena',
+    role: 'worker',
+    canteenId: 1,
+    canteenName: 'Main Canteen',
+    email: 'main.kitchen@campusbite.edu',
+  },
+  {
+    id: 'worker002',
+    name: 'Nimal Bandara',
+    role: 'worker',
+    canteenId: 2,
+    canteenName: 'Engineering Canteen',
+    email: 'eng.kitchen@campusbite.edu',
+  },
+  {
+    id: 'worker003',
+    name: 'Sunil Weerasinghe',
+    role: 'worker',
+    canteenId: 3,
+    canteenName: 'Student Centre Cafe',
+    email: 'cafe.kitchen@campusbite.edu',
+  },
+]
+
 export function AuthProvider({ children }) {
   const [currentUser, setCurrentUser] = useState(() => {
     try {
@@ -32,7 +59,7 @@ export function AuthProvider({ children }) {
     }
   }, [currentUser])
 
-  const login = (loginId, password) => {
+  const login = (loginId, password, designatedCanteenId = null) => {
     const id = (loginId || '').trim().toLowerCase()
     let user = {}
 
@@ -44,13 +71,26 @@ export function AuthProvider({ children }) {
         role: 'admin',
       }
     } else if (id.startsWith('staff') || id.startsWith('worker')) {
+      // Determine which canteen this staff member belongs to
+      let targetCanteenId = designatedCanteenId
+
+      if (!targetCanteenId) {
+        if (id.includes('eng') || id.includes('002') || id === 'worker2') {
+          targetCanteenId = 2
+        } else if (id.includes('cafe') || id.includes('003') || id === 'worker3') {
+          targetCanteenId = 3
+        } else {
+          targetCanteenId = 1
+        }
+      }
+
+      const staffRecord =
+        canteenStaffAccounts.find((s) => s.canteenId === Number(targetCanteenId)) ||
+        canteenStaffAccounts[0]
+
       user = {
-        id: loginId.trim(),
-        name: 'Main Canteen Staff',
-        email: 'canteen.staff@campusbite.edu',
-        role: 'worker',
-        canteenId: 1,
-        canteenName: 'Main Canteen',
+        ...staffRecord,
+        id: loginId.trim() || staffRecord.id,
       }
     } else {
       user = {
@@ -66,7 +106,7 @@ export function AuthProvider({ children }) {
     return user
   }
 
-  const switchRole = (role) => {
+  const switchRole = (role, canteenId = 1) => {
     if (role === 'admin') {
       setCurrentUser({
         id: 'admin001',
@@ -75,14 +115,10 @@ export function AuthProvider({ children }) {
         role: 'admin',
       })
     } else if (role === 'worker') {
-      setCurrentUser({
-        id: 'worker001',
-        name: 'Main Canteen Staff',
-        email: 'staff@campusbite.edu',
-        role: 'worker',
-        canteenId: 1,
-        canteenName: 'Main Canteen',
-      })
+      const staff =
+        canteenStaffAccounts.find((s) => s.canteenId === Number(canteenId)) ||
+        canteenStaffAccounts[0]
+      setCurrentUser(staff)
     } else {
       setCurrentUser({
         id: 'IT20231234',

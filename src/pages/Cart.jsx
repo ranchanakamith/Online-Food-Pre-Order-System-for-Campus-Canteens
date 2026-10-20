@@ -1,14 +1,52 @@
-import { useState } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useCart } from '../context/CartContext'
 import { useOrders } from '../context/OrderContext'
 import { useAuth } from '../context/AuthContext'
+import { useFood } from '../context/FoodContext'
 
 export default function Cart() {
   const navigate = useNavigate()
-  const { cart, updateQuantity, removeFromCart, updateItemInstructions, clearCart, subtotal, serviceFee, total } = useCart()
+  const {
+    cart,
+    updateQuantity,
+    removeFromCart,
+    updateItemInstructions,
+    changeCartCanteen,
+    clearCart,
+    subtotal,
+    serviceFee,
+    total,
+  } = useCart()
   const { placeOrder } = useOrders()
   const { currentUser } = useAuth()
+  const { canteens } = useFood()
+
+  // Track the target canteen for this order
+  const [selectedCanteenId, setSelectedCanteenId] = useState(() => {
+    return cart.length > 0 && cart[0]?.canteenId ? Number(cart[0].canteenId) : 1
+  })
+
+  useEffect(() => {
+    if (cart.length > 0 && cart[0]?.canteenId) {
+      setSelectedCanteenId(Number(cart[0].canteenId))
+    }
+  }, [cart])
+
+  const targetCanteen = useMemo(() => {
+    return (
+      canteens.find((c) => c.id === Number(selectedCanteenId)) || {
+        id: selectedCanteenId,
+        name:
+          selectedCanteenId === 2
+            ? 'Engineering Canteen'
+            : selectedCanteenId === 3
+            ? 'Student Centre Cafe'
+            : 'Main Canteen',
+        location: 'Campus Dining Hall',
+      }
+    )
+  }, [canteens, selectedCanteenId])
 
   const [pickupTime, setPickupTime] = useState('12:30 PM')
   const [orderType, setOrderType] = useState('Takeaway')
@@ -16,21 +54,27 @@ export default function Cart() {
   const [orderNotes, setOrderNotes] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
 
+  const handleCanteenSwitch = (newId) => {
+    setSelectedCanteenId(newId)
+    const target = canteens.find((c) => c.id === newId)
+    if (target) {
+      changeCartCanteen(newId, target.name)
+    }
+  }
+
   const handlePlaceOrder = (e) => {
     e.preventDefault()
     if (cart.length === 0) return
 
     setIsSubmitting(true)
 
-    // Primary canteen from the first item
-    const primaryCanteen = {
-      name: cart[0]?.canteenName || 'Main Canteen',
-      id: cart[0]?.canteenId || 1,
-    }
-
+    // Route order explicitly to the selected canteen
     const newOrder = placeOrder({
       items: cart,
-      canteen: primaryCanteen,
+      canteen: {
+        id: Number(selectedCanteenId),
+        name: targetCanteen.name,
+      },
       pickupTime,
       paymentMethod,
       orderType,
@@ -61,8 +105,7 @@ export default function Cart() {
           <div className="empty-cart-icon">🛒</div>
           <h2>No items in your cart</h2>
           <p>
-            Browse your favorite campus canteens, explore delicious meal menus,
-            and order beforehand to avoid long queues!
+            Choose your canteen, explore available meals, and place your pre-order to skip the queue!
           </p>
           <div className="empty-cart-actions">
             <Link to="/canteens" className="btn btn-primary btn-large">
@@ -79,11 +122,28 @@ export default function Cart() {
 
   return (
     <section className="section container page-top">
+      {/* --- Canteen Destination Routing Notification --- */}
+      <div className="cart-destination-banner">
+        <div className="destination-info">
+          <span className="destination-icon">📍</span>
+          <div>
+            <span className="destination-eyebrow">Order Kitchen Destination</span>
+            <h2>{targetCanteen.name}</h2>
+            <p>
+              Your food items will be sent directly to <strong>{targetCanteen.name}</strong> kitchen staff for preparation.
+            </p>
+          </div>
+        </div>
+        <div className="destination-tag">
+          <span>● Canteen #{targetCanteen.id} Assigned</span>
+        </div>
+      </div>
+
       <div className="section-heading">
         <div>
-          <span className="eyebrow">Almost done</span>
+          <span className="eyebrow">Checkout Review</span>
           <h1>Your cart ({cart.reduce((sum, item) => sum + item.quantity, 0)} items)</h1>
-          <p>Review your selected meals, adjust quantities, and set your pickup time.</p>
+          <p>Review your selected meals, customize notes, and choose pickup time.</p>
         </div>
         <button
           type="button"
@@ -98,8 +158,8 @@ export default function Cart() {
       <div className="checkout-grid">
         <div className="panel cart-items-list">
           <div className="cart-items-header">
-            <h3>Selected Food Items</h3>
-            <Link to="/canteens" className="text-link small-text">
+            <h3>Selected Food Items ({targetCanteen.name})</h3>
+            <Link to={`/canteens/${selectedCanteenId}/menu`} className="text-link small-text">
               + Add more items
             </Link>
           </div>
@@ -118,7 +178,7 @@ export default function Cart() {
                 )}
                 <div className="cart-item-info">
                   <h3>{item.name}</h3>
-                  <p className="cart-canteen-tag">{item.canteenName}</p>
+                  <p className="cart-canteen-tag">📍 {targetCanteen.name}</p>
                   <span className="cart-unit-price">Rs. {item.price} each</span>
 
                   <div className="cart-instructions-wrapper">
@@ -170,6 +230,28 @@ export default function Cart() {
 
         <aside className="panel summary-card">
           <h2>Order Summary</h2>
+
+          {/* Explicit Canteen Selector for the student to confirm/change */}
+          <div className="cart-canteen-selector-box">
+            <label>
+              Canteen Kitchen (Order Destination)
+              <select
+                value={selectedCanteenId}
+                onChange={(e) => handleCanteenSwitch(Number(e.target.value))}
+                className="cart-canteen-select"
+              >
+                {canteens.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name} ({c.location})
+                  </option>
+                ))}
+              </select>
+            </label>
+            <small className="selector-tip">
+              Order will route exclusively to <strong>{targetCanteen.name}</strong> kitchen staff.
+            </small>
+          </div>
+
           <div className="summary-row">
             <span>Subtotal</span>
             <strong>Rs. {subtotal.toLocaleString()}</strong>
@@ -185,7 +267,7 @@ export default function Cart() {
 
           <form className="order-preferences-form" onSubmit={handlePlaceOrder}>
             <label>
-              Pickup time
+              Estimated Pickup time
               <select
                 value={pickupTime}
                 onChange={(e) => setPickupTime(e.target.value)}
@@ -272,13 +354,15 @@ export default function Cart() {
               className="btn btn-primary btn-large full-width place-order-btn"
               disabled={isSubmitting}
             >
-              {isSubmitting ? 'Placing Order...' : `Place Order · Rs. ${total.toLocaleString()}`}
+              {isSubmitting
+                ? 'Routing to Kitchen...'
+                : `Place Order to ${targetCanteen.name} · Rs. ${total.toLocaleString()}`}
             </button>
           </form>
 
           <div className="cart-security-badge">
             <span className="security-icon">🛡️</span>
-            <span>Pre-order guaranteed freshness · Direct from campus kitchen</span>
+            <span>Order routes directly to {targetCanteen.name} kitchen queue</span>
           </div>
         </aside>
       </div>

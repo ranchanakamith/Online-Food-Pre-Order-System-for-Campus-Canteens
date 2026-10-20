@@ -146,6 +146,7 @@ export default function StudentDashboard() {
             const currentQty = cartItemMap[food.id] || 0
             const availableStock = Math.max(food.prepared - food.sold, 0)
             const isAvailable = food.enabled !== false && availableStock > 0
+            const foodCanteen = canteens.find((c) => food.canteenIds?.includes(c.id)) || canteens[0]
 
             return (
               <article className="food-card" key={food.id}>
@@ -158,6 +159,7 @@ export default function StudentDashboard() {
                 <div className="food-card-body">
                   <div className="food-card-meta">
                     <span className="small-label">{food.category}</span>
+                    <span className="food-canteen-source-tag">📍 {foodCanteen.name}</span>
                     <span className="stock-pill in-stock">{availableStock} available</span>
                   </div>
                   <h3>{food.name}</h3>
@@ -192,7 +194,7 @@ export default function StudentDashboard() {
                       <button
                         type="button"
                         className="btn btn-primary add-cart-btn"
-                        onClick={() => addToCart(food)}
+                        onClick={() => addToCart(food, foodCanteen)}
                       >
                         + Add to Cart
                       </button>

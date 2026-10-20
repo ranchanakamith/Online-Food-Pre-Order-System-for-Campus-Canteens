@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useFood } from '../context/FoodContext'
 import { useOrders } from '../context/OrderContext'
+import { useAuth, canteenStaffAccounts } from '../context/AuthContext'
 
 const actionLabels = {
   PENDING: 'Accept Order',
@@ -24,8 +26,10 @@ const photoPresets = [
 ]
 
 export default function WorkerDashboard() {
-  const { foods, updateFoodStock, addFood, removeFood } = useFood()
+  const { canteens, foods, updateFoodStock, addFood, removeFood } = useFood()
   const { orders, advanceOrderStatus } = useOrders()
+  const { currentUser, switchRole } = useAuth()
+
   const [savedFoodId, setSavedFoodId] = useState(null)
   const [orderFilter, setOrderFilter] = useState('active')
 
@@ -43,10 +47,28 @@ export default function WorkerDashboard() {
     image: photoPresets[0].url,
   })
 
-  // Filter food items relevant to Main Canteen (or all campus foods)
+  // 1. Role Access Control Check: Ensure user has worker permissions
+  const isWorker = currentUser?.role === 'worker' || currentUser?.role === 'admin'
+
+  // 2. Identify the specific canteen assigned to this worker
+  const activeCanteenId = currentUser?.canteenId || 1
+  const assignedCanteen = useMemo(() => {
+    return canteens.find((c) => c.id === Number(activeCanteenId)) || canteens[0] || {}
+  }, [canteens, activeCanteenId])
+
+  // 3. Strict Canteen Food Isolation: Worker sees and edits ONLY their assigned canteen's items
   const canteenFoods = useMemo(() => {
-    return foods.filter((f) => !f.canteenIds || f.canteenIds.includes(1))
-  }, [foods])
+    return foods.filter(
+      (f) => f.canteenIds && f.canteenIds.includes(Number(activeCanteenId))
+    )
+  }, [foods, activeCanteenId])
+
+  // 4. Strict Canteen Order Isolation: Worker sees and manages ONLY orders placed for their assigned canteen
+  const canteenOrders = useMemo(() => {
+    return orders.filter(
+      (o) => Number(o.canteenId) === Number(activeCanteenId)
+    )
+  }, [orders, activeCanteenId])
 
   const summary = useMemo(() => {
     const prepared = canteenFoods.reduce((sum, food) => sum + (food.prepared || 0), 0)
@@ -55,22 +77,22 @@ export default function WorkerDashboard() {
       (sum, food) => sum + Math.max((food.prepared || 0) - (food.sold || 0), 0),
       0
     )
-    const waitingOrders = orders.filter(
+    const waitingOrders = canteenOrders.filter(
       (order) => !['READY', 'COMPLETED', 'CANCELLED'].includes(order.status)
     ).length
 
     return { prepared, sold, available, waitingOrders }
-  }, [canteenFoods, orders])
+  }, [canteenFoods, canteenOrders])
 
   const filteredOrders = useMemo(() => {
     if (orderFilter === 'active') {
-      return orders.filter((o) => !['COMPLETED', 'CANCELLED'].includes(o.status))
+      return canteenOrders.filter((o) => !['COMPLETED', 'CANCELLED'].includes(o.status))
     }
     if (orderFilter === 'completed') {
-      return orders.filter((o) => o.status === 'COMPLETED')
+      return canteenOrders.filter((o) => o.status === 'COMPLETED')
     }
-    return orders
-  }, [orders, orderFilter])
+    return canteenOrders
+  }, [canteenOrders, orderFilter])
 
   const saveFood = (id) => {
     setSavedFoodId(id)
@@ -81,19 +103,20 @@ export default function WorkerDashboard() {
     e.preventDefault()
     if (!newFood.name.trim()) return
 
+    // Explicitly lock the newly added food item to THIS worker's assigned canteen
     const created = addFood({
       name: newFood.name.trim(),
       category: newFood.category,
       price: Number(newFood.price) || 100,
       target: Number(newFood.target) || 30,
       prepared: Number(newFood.prepared) || 30,
-      description: newFood.description.trim() || 'Freshly prepared campus canteen meal.',
+      description: newFood.description.trim() || 'Freshly prepared meal from the campus kitchen.',
       tag: newFood.tag || 'Fresh',
       image: newFood.image || photoPresets[0].url,
-      canteenIds: [1],
+      canteenIds: [Number(activeCanteenId)],
     })
 
-    setSuccessAlert(`✓ "${created.name}" added successfully to today's menu!`)
+    setSuccessAlert(`✓ "${created.name}" added successfully to ${assignedCanteen.name}'s menu!`)
     setTimeout(() => setSuccessAlert(''), 3500)
 
     // Reset form & close modal
@@ -111,27 +134,106 @@ export default function WorkerDashboard() {
   }
 
   const handleDeleteFood = (foodId, foodName) => {
-    if (window.confirm(`Are you sure you want to remove "${foodName}" from the menu?`)) {
+    if (window.confirm(`Are you sure you want to remove "${foodName}" from ${assignedCanteen.name}?`)) {
       removeFood(foodId)
-      setSuccessAlert(`Removed "${foodName}" from today's menu.`)
+      setSuccessAlert(`Removed "${foodName}" from ${assignedCanteen.name}'s menu.`)
       setTimeout(() => setSuccessAlert(''), 3000)
     }
   }
 
+  // If a student or non-staff user visits /worker, display access denied
+  if (!isWorker) {
+    return (
+      <section className="section container page-top">
+        <div className="panel access-denied-card">
+          <div className="access-denied-icon">🔒</div>
+          <h2>Canteen Staff Portal Access Restricted</h2>
+          <p>
+            You are currently signed in as <strong>{currentUser?.name || 'Student'} ({currentUser?.id})</strong>.
+            This kitchen management portal requires authorized Canteen Staff credentials.
+          </p>
+          <div className="access-denied-canteen-list">
+            <span>To inspect a canteen's worker view, sign in as that canteen's staff:</span>
+            <div className="quick-access-buttons">
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => switchRole('worker', 1)}
+              >
+                👨‍🍳 Login as Main Canteen Staff
+              </button>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => switchRole('worker', 2)}
+              >
+                👨‍🍳 Login as Engineering Canteen Staff
+              </button>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => switchRole('worker', 3)}
+              >
+                👨‍🍳 Login as Student Centre Cafe Staff
+              </button>
+            </div>
+          </div>
+          <div className="access-denied-footer">
+            <Link to="/student" className="btn btn-primary">
+              Return to Student Dashboard
+            </Link>
+          </div>
+        </div>
+      </section>
+    )
+  }
+
   return (
     <section className="worker-page container">
+      {/* --- Canteen Isolation Security Banner --- */}
+      <div className="worker-isolation-badge">
+        <div className="isolation-text">
+          <span className="isolation-lock-icon">🔒</span>
+          <span>
+            <strong>Facility Access Lock Active:</strong> You are authorized to view and manage <strong>{assignedCanteen.name}</strong> only. All other campus canteen inventories and orders are strictly isolated.
+          </span>
+        </div>
+
+        {/* Demo Facility Switcher for Examiners / Evaluators */}
+        <div className="canteen-eval-switch">
+          <span className="eval-label">Switch Staff Canteen (Test Mode):</span>
+          <select
+            value={activeCanteenId}
+            onChange={(e) => switchRole('worker', Number(e.target.value))}
+            className="eval-select"
+            title="Switch worker to another canteen to test facility isolation"
+          >
+            {canteenStaffAccounts.map((staff) => (
+              <option key={staff.canteenId} value={staff.canteenId}>
+                {staff.canteenName} ({staff.name})
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
       <header className="worker-hero">
         <div>
-          <span className="eyebrow">Worker & Kitchen Portal</span>
-          <h1>Main Canteen Kitchen</h1>
+          <span className="eyebrow">{assignedCanteen.name} · Kitchen Portal</span>
+          <h1>{assignedCanteen.name} Kitchen</h1>
           <p>
-            Manage live food stock portions, prices, add new items, and process student pre-orders
-            in real time.
+            Manage live food stock portions, update prices, and process student orders for{' '}
+            <strong>{assignedCanteen.name}</strong> ({assignedCanteen.location}).
           </p>
+          <div className="worker-meta-details">
+            <span className="worker-staff-badge">
+              👤 Staff In-Charge: <strong>{currentUser?.name}</strong> (ID: {currentUser?.id})
+            </span>
+          </div>
         </div>
         <div className="worker-shift-badge">
           <span className="worker-live-dot" />
-          Kitchen Live & Accepting Orders
+          {assignedCanteen.name} Open & Live
         </div>
       </header>
 
@@ -139,12 +241,12 @@ export default function WorkerDashboard() {
         <article className="worker-summary-card primary">
           <span>Available now</span>
           <strong>{summary.available}</strong>
-          <small>portions left to sell</small>
+          <small>portions left to sell ({assignedCanteen.name})</small>
         </article>
         <article className="worker-summary-card">
           <span>Orders waiting</span>
           <strong className="text-warn">{summary.waitingOrders}</strong>
-          <small>need kitchen attention</small>
+          <small>waiting in {assignedCanteen.name} queue</small>
         </article>
         <article className="worker-summary-card">
           <span>Prepared today</span>
@@ -164,14 +266,14 @@ export default function WorkerDashboard() {
         </div>
       )}
 
+      {/* --- DAILY FOOD INVENTORY SECTION (ISOLATED TO THIS CANTEEN) --- */}
       <section className="worker-section">
         <div className="worker-section-heading">
           <div>
             <span className="eyebrow">Daily Food Inventory</span>
-            <h2>Today's Menu Stock</h2>
+            <h2>{assignedCanteen.name} Menu Stock ({canteenFoods.length} items)</h2>
             <p>
-              Changes made here instantly update the student menu. Toggle availability
-              when an item runs out.
+              Changes made here update only {assignedCanteen.name}'s menu. Items from other canteens are not shown.
             </p>
           </div>
 
@@ -184,141 +286,154 @@ export default function WorkerDashboard() {
           </button>
         </div>
 
-        <div className="worker-food-grid">
-          {canteenFoods.map((food) => {
-            const availableQty = Math.max((food.prepared || 0) - (food.sold || 0), 0)
-            const targetQty = food.target || 0
-            const preparedQty = food.prepared || 0
-            const needToPrepare = Math.max(targetQty - preparedQty, 0)
-            const isAvailable = food.enabled !== false && availableQty > 0
+        {canteenFoods.length === 0 ? (
+          <div className="panel empty-search-panel">
+            <p>No food items currently assigned to {assignedCanteen.name}.</p>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => setShowAddModal(true)}
+            >
+              + Add First Food Item
+            </button>
+          </div>
+        ) : (
+          <div className="worker-food-grid">
+            {canteenFoods.map((food) => {
+              const availableQty = Math.max((food.prepared || 0) - (food.sold || 0), 0)
+              const targetQty = food.target || 0
+              const preparedQty = food.prepared || 0
+              const needToPrepare = Math.max(targetQty - preparedQty, 0)
+              const isAvailable = food.enabled !== false && availableQty > 0
 
-            return (
-              <article className="worker-food-card" key={food.id}>
-                <div className="worker-food-card-top">
-                  <div className="worker-food-title-group">
-                    {food.image && (
-                      <img
-                        src={food.image}
-                        alt={food.name}
-                        className="worker-food-thumb"
-                      />
-                    )}
+              return (
+                <article className="worker-food-card" key={food.id}>
+                  <div className="worker-food-card-top">
+                    <div className="worker-food-title-group">
+                      {food.image && (
+                        <img
+                          src={food.image}
+                          alt={food.name}
+                          className="worker-food-thumb"
+                        />
+                      )}
+                      <div>
+                        <h3>{food.name}</h3>
+                        <p>Rs. {food.price} per portion</p>
+                        <span className="worker-category-tag">{food.category || 'Lunch'}</span>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      className={`worker-status-toggle ${isAvailable ? 'is-available' : 'is-sold-out'}`}
+                      onClick={() => updateFoodStock(food.id, 'enabled', !food.enabled)}
+                      title={isAvailable ? 'Click to mark as Sold Out' : 'Click to enable availability'}
+                    >
+                      <span />
+                      {isAvailable ? 'Available' : 'Sold Out'}
+                    </button>
+                  </div>
+
+                  <div className="worker-stock-highlight">
                     <div>
-                      <h3>{food.name}</h3>
-                      <p>Rs. {food.price} per portion</p>
-                      <span className="worker-category-tag">{food.category || 'Lunch'}</span>
+                      <strong>{availableQty}</strong>
+                      <span>Available</span>
+                    </div>
+                    <div className="worker-stock-divider" />
+                    <div>
+                      <strong>{food.sold || 0}</strong>
+                      <span>Sold</span>
+                    </div>
+                    <div className="worker-stock-divider" />
+                    <div>
+                      <strong>{preparedQty}</strong>
+                      <span>Prepared</span>
                     </div>
                   </div>
 
-                  <button
-                    type="button"
-                    className={`worker-status-toggle ${isAvailable ? 'is-available' : 'is-sold-out'}`}
-                    onClick={() => updateFoodStock(food.id, 'enabled', !food.enabled)}
-                    title={isAvailable ? 'Click to mark as Sold Out' : 'Click to enable availability'}
-                  >
-                    <span />
-                    {isAvailable ? 'Available' : 'Sold Out'}
-                  </button>
-                </div>
+                  <div className="worker-edit-grid">
+                    <label>
+                      Price (Rs.)
+                      <input
+                        type="number"
+                        min="0"
+                        value={food.price}
+                        onChange={(e) => updateFoodStock(food.id, 'price', e.target.value)}
+                      />
+                    </label>
 
-                <div className="worker-stock-highlight">
-                  <div>
-                    <strong>{availableQty}</strong>
-                    <span>Available</span>
+                    <label>
+                      Target
+                      <input
+                        type="number"
+                        min="0"
+                        value={food.target || 0}
+                        onChange={(e) => updateFoodStock(food.id, 'target', e.target.value)}
+                      />
+                    </label>
+
+                    <label>
+                      Prepared
+                      <input
+                        type="number"
+                        min="0"
+                        value={food.prepared || 0}
+                        onChange={(e) => updateFoodStock(food.id, 'prepared', e.target.value)}
+                      />
+                    </label>
+
+                    <label>
+                      Sold
+                      <input
+                        type="number"
+                        min="0"
+                        max={food.prepared || 0}
+                        value={food.sold || 0}
+                        onChange={(e) => updateFoodStock(food.id, 'sold', e.target.value)}
+                      />
+                    </label>
                   </div>
-                  <div className="worker-stock-divider" />
-                  <div>
-                    <strong>{food.sold || 0}</strong>
-                    <span>Sold</span>
+
+                  <div className={`worker-prepare-message ${needToPrepare > 0 ? 'needs-more' : 'enough'}`}>
+                    {needToPrepare > 0
+                      ? `⚠️ Prepare ${needToPrepare} more to hit target.`
+                      : '✓ Target reached. No additional preparation needed.'}
                   </div>
-                  <div className="worker-stock-divider" />
-                  <div>
-                    <strong>{preparedQty}</strong>
-                    <span>Prepared</span>
+
+                  <div className="worker-card-action-row">
+                    <button
+                      type="button"
+                      className="btn btn-primary worker-save-btn flex-1"
+                      onClick={() => saveFood(food.id)}
+                    >
+                      {savedFoodId === food.id ? '✓ Changes Saved' : 'Save Stock'}
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-secondary worker-delete-btn"
+                      onClick={() => handleDeleteFood(food.id, food.name)}
+                      title={`Remove from ${assignedCanteen.name} menu`}
+                    >
+                      🗑️
+                    </button>
                   </div>
-                </div>
-
-                <div className="worker-edit-grid">
-                  <label>
-                    Price (Rs.)
-                    <input
-                      type="number"
-                      min="0"
-                      value={food.price}
-                      onChange={(e) => updateFoodStock(food.id, 'price', e.target.value)}
-                    />
-                  </label>
-
-                  <label>
-                    Target
-                    <input
-                      type="number"
-                      min="0"
-                      value={food.target || 0}
-                      onChange={(e) => updateFoodStock(food.id, 'target', e.target.value)}
-                    />
-                  </label>
-
-                  <label>
-                    Prepared
-                    <input
-                      type="number"
-                      min="0"
-                      value={food.prepared || 0}
-                      onChange={(e) => updateFoodStock(food.id, 'prepared', e.target.value)}
-                    />
-                  </label>
-
-                  <label>
-                    Sold
-                    <input
-                      type="number"
-                      min="0"
-                      max={food.prepared || 0}
-                      value={food.sold || 0}
-                      onChange={(e) => updateFoodStock(food.id, 'sold', e.target.value)}
-                    />
-                  </label>
-                </div>
-
-                <div className={`worker-prepare-message ${needToPrepare > 0 ? 'needs-more' : 'enough'}`}>
-                  {needToPrepare > 0
-                    ? `⚠️ Prepare ${needToPrepare} more to hit target.`
-                    : '✓ Target reached. No additional preparation needed.'}
-                </div>
-
-                <div className="worker-card-action-row">
-                  <button
-                    type="button"
-                    className="btn btn-primary worker-save-btn flex-1"
-                    onClick={() => saveFood(food.id)}
-                  >
-                    {savedFoodId === food.id ? '✓ Changes Saved' : 'Save Stock'}
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-secondary worker-delete-btn"
-                    onClick={() => handleDeleteFood(food.id, food.name)}
-                    title="Remove item from menu"
-                  >
-                    🗑️
-                  </button>
-                </div>
-              </article>
-            )
-          })}
-        </div>
+                </article>
+              )
+            })}
+          </div>
+        )}
       </section>
 
-      {/* --- ADD NEW FOOD MODAL --- */}
+      {/* --- ADD NEW FOOD MODAL (LOCKED TO THIS CANTEEN) --- */}
       {showAddModal && (
         <div className="worker-modal-backdrop" onClick={() => setShowAddModal(false)}>
           <div className="worker-modal-card" onClick={(e) => e.stopPropagation()}>
             <div className="worker-modal-header">
               <div>
-                <span className="eyebrow">Kitchen Menu Management</span>
-                <h2>Add New Food Item</h2>
-                <p>New dishes added here will be immediately available for students to order.</p>
+                <span className="eyebrow">{assignedCanteen.name} · Menu Setup</span>
+                <h2>Add Food to {assignedCanteen.name}</h2>
+                <p>New dishes added here will appear exclusively under {assignedCanteen.name}'s menu.</p>
               </div>
               <button
                 type="button"
@@ -464,7 +579,7 @@ export default function WorkerDashboard() {
                   Cancel
                 </button>
                 <button type="submit" className="btn btn-primary btn-large">
-                  ✓ Add Food to Menu
+                  ✓ Add to {assignedCanteen.name}
                 </button>
               </div>
             </form>
@@ -472,13 +587,13 @@ export default function WorkerDashboard() {
         </div>
       )}
 
-      {/* --- LIVE ORDER QUEUE --- */}
+      {/* --- LIVE ORDER QUEUE (ISOLATED TO THIS CANTEEN) --- */}
       <section className="worker-section worker-orders-section">
         <div className="worker-section-heading">
           <div>
             <span className="eyebrow">Order Queue</span>
-            <h2>Live Student Orders ({filteredOrders.length})</h2>
-            <p>Advance each order as kitchen preparation progresses.</p>
+            <h2>{assignedCanteen.name} Live Orders ({filteredOrders.length})</h2>
+            <p>Advance each order as preparation progresses in {assignedCanteen.name}'s kitchen.</p>
           </div>
 
           <div className="worker-order-filters">
@@ -487,28 +602,28 @@ export default function WorkerDashboard() {
               className={`filter-chip ${orderFilter === 'active' ? 'active' : ''}`}
               onClick={() => setOrderFilter('active')}
             >
-              Active ({orders.filter((o) => !['COMPLETED', 'CANCELLED'].includes(o.status)).length})
+              Active ({canteenOrders.filter((o) => !['COMPLETED', 'CANCELLED'].includes(o.status)).length})
             </button>
             <button
               type="button"
               className={`filter-chip ${orderFilter === 'all' ? 'active' : ''}`}
               onClick={() => setOrderFilter('all')}
             >
-              All Orders ({orders.length})
+              All Orders ({canteenOrders.length})
             </button>
             <button
               type="button"
               className={`filter-chip ${orderFilter === 'completed' ? 'active' : ''}`}
               onClick={() => setOrderFilter('completed')}
             >
-              Completed ({orders.filter((o) => o.status === 'COMPLETED').length})
+              Completed ({canteenOrders.filter((o) => o.status === 'COMPLETED').length})
             </button>
           </div>
         </div>
 
         {filteredOrders.length === 0 ? (
           <div className="panel empty-search-panel">
-            <p>No orders currently in this queue.</p>
+            <p>No orders currently in {assignedCanteen.name}'s kitchen queue.</p>
           </div>
         ) : (
           <div className="worker-order-list">

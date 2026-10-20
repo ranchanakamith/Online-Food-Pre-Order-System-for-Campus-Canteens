@@ -18,15 +18,21 @@ export default function Login() {
     else navigate('/student')
   }
 
-  const handleQuickLogin = (role) => {
+  const handleQuickLogin = (role, canteenId = 1) => {
     let id = ''
-    if (role === 'admin') id = 'admin001'
-    else if (role === 'worker') id = 'worker001'
-    else id = 'IT20231234'
+    if (role === 'admin') {
+      id = 'admin001'
+    } else if (role === 'worker') {
+      if (canteenId === 2) id = 'worker002'
+      else if (canteenId === 3) id = 'worker003'
+      else id = 'worker001'
+    } else {
+      id = 'IT20231234'
+    }
 
     setLoginId(id)
     setPassword('demo1234')
-    const user = login(id, 'demo1234')
+    const user = login(id, 'demo1234', canteenId)
 
     if (user.role === 'admin') navigate('/admin')
     else if (user.role === 'worker') navigate('/worker')
@@ -42,7 +48,7 @@ export default function Login() {
           <p>
             An integrated smart pre-order platform connecting university students,
             canteen kitchen workers, and campus dining administrators into a seamless,
-            queue-free dining ecosystem.
+            queue-free dining ecosystem with role-based canteen facility access control.
           </p>
 
           <div className="login-features-list">
@@ -54,10 +60,10 @@ export default function Login() {
               </div>
             </div>
             <div className="login-feature-item">
-              <span className="feature-icon">👨‍🍳</span>
+              <span className="feature-icon">🔒</span>
               <div>
-                <strong>Live Kitchen Queue</strong>
-                <p>Canteen staff receive and advance orders in real-time as they cook.</p>
+                <strong>Isolated Kitchen Portals</strong>
+                <p>Each canteen's staff has exclusive access to their own food inventory and orders.</p>
               </div>
             </div>
             <div className="login-feature-item">
@@ -76,28 +82,52 @@ export default function Login() {
           <p>Enter your student registration number or staff ID.</p>
 
           <div className="quick-demo-login-box">
-            <span className="quick-login-title">Quick Demo Logins (1-Click):</span>
-            <div className="quick-login-buttons">
+            <span className="quick-login-title">Quick Demo Logins (1-Click Role Switch):</span>
+            <div className="quick-login-buttons-stacked">
               <button
                 type="button"
                 className="btn-quick-role student"
                 onClick={() => handleQuickLogin('student')}
               >
-                🎓 Student
+                🎓 Student (Kasun)
               </button>
-              <button
-                type="button"
-                className="btn-quick-role worker"
-                onClick={() => handleQuickLogin('worker')}
-              >
-                👨‍🍳 Kitchen Staff
-              </button>
+
+              <div className="quick-worker-group">
+                <span className="quick-group-label">Canteen Staff (Facility-Restricted):</span>
+                <div className="quick-worker-grid">
+                  <button
+                    type="button"
+                    className="btn-quick-role worker"
+                    onClick={() => handleQuickLogin('worker', 1)}
+                    title="Login as Main Canteen Kitchen Staff"
+                  >
+                    👨‍🍳 Main Canteen
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-quick-role worker"
+                    onClick={() => handleQuickLogin('worker', 2)}
+                    title="Login as Engineering Canteen Kitchen Staff"
+                  >
+                    👨‍🍳 Eng Canteen
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-quick-role worker"
+                    onClick={() => handleQuickLogin('worker', 3)}
+                    title="Login as Student Centre Cafe Staff"
+                  >
+                    👨‍🍳 Cafe Staff
+                  </button>
+                </div>
+              </div>
+
               <button
                 type="button"
                 className="btn-quick-role admin"
                 onClick={() => handleQuickLogin('admin')}
               >
-                🛡️ Admin
+                🛡️ System Administrator
               </button>
             </div>
           </div>
@@ -107,11 +137,14 @@ export default function Login() {
               Registration No. / Staff ID
               <input
                 type="text"
-                placeholder="e.g. IT20231234 or worker001"
+                placeholder="e.g. IT20231234, worker001, worker002"
                 value={loginId}
                 onChange={(e) => setLoginId(e.target.value)}
                 required
               />
+              <span className="input-helper-text">
+                Staff IDs: <code>worker001</code> (Main), <code>worker002</code> (Engineering), <code>worker003</code> (Cafe)
+              </span>
             </label>
 
             <label>

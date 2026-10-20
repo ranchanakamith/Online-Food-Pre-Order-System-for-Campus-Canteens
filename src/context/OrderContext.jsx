@@ -53,6 +53,23 @@ const initialSeedOrders = [
     status: 'READY',
     createdAt: new Date(Date.now() - 40 * 60 * 1000).toISOString(),
   },
+  {
+    id: 'CB1026',
+    student: 'IT20231678',
+    canteen: 'Student Centre Cafe',
+    canteenId: 3,
+    itemsSummary: 'Crispy Chicken Burger ×1, Chocolate Lava Muffin ×1',
+    items: [
+      { id: 5, name: 'Crispy Chicken Burger', price: 550, quantity: 1 },
+      { id: 10, name: 'Chocolate Lava Muffin', price: 280, quantity: 1 },
+    ],
+    total: 830,
+    pickup: '1:15 PM',
+    orderType: 'Takeaway',
+    paymentMethod: 'Online Payment',
+    status: 'PENDING',
+    createdAt: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
+  },
 ]
 
 export const statusSequence = ['PENDING', 'ACCEPTED', 'PREPARING', 'READY', 'COMPLETED']
@@ -70,7 +87,14 @@ export function OrderProvider({ children }) {
   const [orders, setOrders] = useState(() => {
     try {
       const saved = localStorage.getItem('campusbite_orders')
-      if (saved) return JSON.parse(saved)
+      if (saved) {
+        const parsed = JSON.parse(saved)
+        // Ensure canteenId is always a number for every saved order
+        return parsed.map((o) => ({
+          ...o,
+          canteenId: Number(o.canteenId || (o.canteen?.includes('Engineering') ? 2 : o.canteen?.includes('Cafe') ? 3 : 1)),
+        }))
+      }
     } catch (e) {
       console.error(e)
     }
@@ -93,18 +117,36 @@ export function OrderProvider({ children }) {
       .map((item) => `${item.name} ×${item.quantity}`)
       .join(', ')
 
-    const total = items.reduce((sum, item) => sum + item.price * item.quantity, 0)
+    const total = items.reduce((sum, item) => sum + Number(item.price) * item.quantity, 0)
+
+    // Strict numerical Canteen ID resolution
+    const orderCanteenId = Number(
+      canteen?.id !== undefined
+        ? canteen.id
+        : items[0]?.canteenId !== undefined
+        ? items[0].canteenId
+        : 1
+    )
+
+    const orderCanteenName =
+      canteen?.name ||
+      items[0]?.canteenName ||
+      (orderCanteenId === 2
+        ? 'Engineering Canteen'
+        : orderCanteenId === 3
+        ? 'Student Centre Cafe'
+        : 'Main Canteen')
 
     const newOrder = {
       id: newOrderId,
       student: studentId || 'IT20231234',
-      canteen: canteen?.name || items[0]?.canteenName || 'Main Canteen',
-      canteenId: canteen?.id || items[0]?.canteenId || 1,
+      canteen: orderCanteenName,
+      canteenId: orderCanteenId,
       itemsSummary,
       items: items.map((i) => ({
         id: i.id,
         name: i.name,
-        price: i.price,
+        price: Number(i.price),
         quantity: i.quantity,
         instructions: i.instructions || '',
       })),
