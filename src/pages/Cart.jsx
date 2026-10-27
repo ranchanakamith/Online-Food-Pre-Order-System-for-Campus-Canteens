@@ -66,6 +66,11 @@ export default function Cart() {
     e.preventDefault()
     if (cart.length === 0) return
 
+    if (!currentUser) {
+      navigate('/login?redirect=/cart')
+      return
+    }
+
     setIsSubmitting(true)
 
     // Route order explicitly to the selected canteen
@@ -79,7 +84,7 @@ export default function Cart() {
       paymentMethod,
       orderType,
       notes: orderNotes,
-      studentId: currentUser?.id || 'IT20231234',
+      studentId: currentUser.id,
     })
 
     clearCart()
@@ -122,32 +127,22 @@ export default function Cart() {
 
   return (
     <section className="section container page-top">
-      {/* --- Canteen Destination Routing Notification --- */}
-      <div className="cart-destination-banner">
-        <div className="destination-info">
-          <span className="destination-icon">📍</span>
-          <div>
-            <span className="destination-eyebrow">Order Kitchen Destination</span>
-            <h2>{targetCanteen.name}</h2>
-            <p>
-              Your food items will be sent directly to <strong>{targetCanteen.name}</strong> kitchen staff for preparation.
-            </p>
-          </div>
-        </div>
-        <div className="destination-tag">
-          <span>● Canteen #{targetCanteen.id} Assigned</span>
-        </div>
+      {/* Clean Canteen Destination Pill */}
+      <div className="cart-canteen-pill">
+        <span>📍 Preparing at <strong>{targetCanteen.name}</strong> ({targetCanteen.location})</span>
+        <Link to={`/canteens/${selectedCanteenId}/menu`} className="text-link small-text">
+          + Add more items
+        </Link>
       </div>
 
       <div className="section-heading">
         <div>
           <span className="eyebrow">Checkout Review</span>
-          <h1>Your cart ({cart.reduce((sum, item) => sum + item.quantity, 0)} items)</h1>
-          <p>Review your selected meals, customize notes, and choose pickup time.</p>
+          <h1>Your Cart ({cart.reduce((sum, item) => sum + item.quantity, 0)} items)</h1>
         </div>
         <button
           type="button"
-          className="btn btn-ghost text-danger"
+          className="btn btn-ghost text-danger btn-sm"
           onClick={clearCart}
           title="Remove all items from your cart"
         >
@@ -349,15 +344,38 @@ export default function Cart() {
               />
             </label>
 
-            <button
-              type="submit"
-              className="btn btn-primary btn-large full-width place-order-btn"
-              disabled={isSubmitting}
-            >
-              {isSubmitting
-                ? 'Routing to Kitchen...'
-                : `Place Order to ${targetCanteen.name} · Rs. ${total.toLocaleString()}`}
-            </button>
+            {!currentUser ? (
+              <div className="login-required-box">
+                <div className="login-required-header">
+                  <span className="login-required-icon">🔒</span>
+                  <div>
+                    <h4>Login Required to Place Order</h4>
+                    <p>You must be signed in to your student account to place this order and track preparation.</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  className="btn btn-primary btn-large full-width"
+                  onClick={() => navigate('/login?redirect=/cart')}
+                >
+                  Sign In to Place Order
+                </button>
+                <div className="login-required-help">
+                  <span>Don't have an account?</span>{' '}
+                  <Link to="/register">Create an account</Link>
+                </div>
+              </div>
+            ) : (
+              <button
+                type="submit"
+                className="btn btn-primary btn-large full-width place-order-btn"
+                disabled={isSubmitting}
+              >
+                {isSubmitting
+                  ? 'Routing to Kitchen...'
+                  : `Place Order to ${targetCanteen.name} · Rs. ${total.toLocaleString()}`}
+              </button>
+            )}
           </form>
 
           <div className="cart-security-badge">

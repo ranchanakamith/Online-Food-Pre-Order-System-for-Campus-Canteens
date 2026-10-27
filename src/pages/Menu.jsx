@@ -43,6 +43,14 @@ export default function Menu() {
     return map
   }, [cart])
 
+  const handleSearchSubmit = (e) => {
+    e.preventDefault()
+    const foodListEl = document.getElementById('menu-items-grid')
+    if (foodListEl) {
+      foodListEl.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+  }
+
   return (
     <section className="section container page-top">
       <div className="breadcrumb-nav">
@@ -93,23 +101,30 @@ export default function Menu() {
           ))}
         </div>
 
-        <div className="menu-search-box">
-          <input
-            type="text"
-            placeholder="Search this menu (e.g. rice, juice)..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-          {searchQuery && (
-            <button
-              type="button"
-              className="clear-search-btn"
-              onClick={() => setSearchQuery('')}
-            >
-              ×
-            </button>
-          )}
-        </div>
+        <form onSubmit={handleSearchSubmit} className="menu-search-form">
+          <div className="search-input-wrapper">
+            <span className="search-input-icon">🔍</span>
+            <input
+              type="text"
+              placeholder="Search items (e.g. rice, juice)..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                className="clear-search-btn"
+                onClick={() => setSearchQuery('')}
+                title="Clear search"
+              >
+                ×
+              </button>
+            )}
+          </div>
+          <button type="submit" className="btn btn-primary search-action-btn">
+            Search
+          </button>
+        </form>
       </div>
 
       {filteredFoods.length === 0 ? (
@@ -128,7 +143,7 @@ export default function Menu() {
           </button>
         </div>
       ) : (
-        <div className="card-grid two">
+        <div id="menu-items-grid" className="card-grid two">
           {filteredFoods.map((food) => {
             const availableStock = Math.max(food.prepared - food.sold, 0)
             const isAvailable = food.enabled !== false && availableStock > 0

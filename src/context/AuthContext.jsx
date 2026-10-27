@@ -37,14 +37,8 @@ export function AuthProvider({ children }) {
     } catch (e) {
       console.error(e)
     }
-    // Default student user so the app is immediately usable without having to login repeatedly
-    return {
-      id: 'IT20231234',
-      name: 'Kasun Perera',
-      email: 'it20231234@campus.edu',
-      role: 'student',
-      faculty: 'Computing',
-    }
+    // Default to null so user starts unauthenticated
+    return null
   })
 
   useEffect(() => {
@@ -59,7 +53,7 @@ export function AuthProvider({ children }) {
     }
   }, [currentUser])
 
-  const login = (loginId, password, designatedCanteenId = null) => {
+  const login = (loginId, password, designatedCanteenId = null, customName = null) => {
     const id = (loginId || '').trim().toLowerCase()
     let user = {}
 
@@ -95,7 +89,7 @@ export function AuthProvider({ children }) {
     } else {
       user = {
         id: loginId.trim() || 'IT20231234',
-        name: 'Kasun Perera',
+        name: customName || (loginId.trim() === 'IT20231234' ? 'Kasun Perera' : loginId.trim() ? `Student (${loginId.trim()})` : 'Student'),
         email: `${(loginId.trim() || 'student').toLowerCase()}@campus.edu`,
         role: 'student',
         faculty: 'Computing',

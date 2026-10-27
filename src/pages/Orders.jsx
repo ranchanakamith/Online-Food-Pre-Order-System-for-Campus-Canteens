@@ -2,13 +2,40 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useOrders, statusSequence, statusLabels } from '../context/OrderContext'
 import { useCart } from '../context/CartContext'
+import { useAuth } from '../context/AuthContext'
 
 export default function Orders() {
   const { orders, cancelOrder } = useOrders()
   const { addToCart } = useCart()
+  const { currentUser } = useAuth()
   const [filter, setFilter] = useState('all')
 
-  const filteredOrders = orders.filter((order) => {
+  if (!currentUser) {
+    return (
+      <section className="section container page-top">
+        <div className="panel empty-cart-card">
+          <div className="empty-cart-icon">🔒</div>
+          <h2>Sign In to View Orders</h2>
+          <p>Please sign in with your student account to track your orders and live kitchen preparation status.</p>
+          <div className="empty-cart-actions">
+            <Link to="/login?redirect=/orders" className="btn btn-primary btn-large">
+              Sign In to Account
+            </Link>
+            <Link to="/home" className="btn btn-secondary btn-large">
+              Go to Home Page
+            </Link>
+          </div>
+        </div>
+      </section>
+    )
+  }
+
+  // Filter orders for the logged-in student (or all if admin)
+  const studentOrders = currentUser.role === 'admin'
+    ? orders
+    : orders.filter((o) => !o.student || o.student === currentUser.id || o.studentId === currentUser.id)
+
+  const filteredOrders = studentOrders.filter((order) => {
     if (filter === 'active') {
       return ['PENDING', 'ACCEPTED', 'PREPARING', 'READY'].includes(order.status)
     }
@@ -34,7 +61,7 @@ export default function Orders() {
       <div className="section-heading">
         <div>
           <span className="eyebrow">Track your meals</span>
-          <h1>My orders ({orders.length})</h1>
+          <h1>My orders ({studentOrders.length})</h1>
           <p>Real-time order progress and pickup notifications from campus canteens.</p>
         </div>
         <Link to="/canteens" className="btn btn-primary">
@@ -48,14 +75,14 @@ export default function Orders() {
           className={`filter-tab ${filter === 'all' ? 'active' : ''}`}
           onClick={() => setFilter('all')}
         >
-          All Orders ({orders.length})
+          All Orders ({studentOrders.length})
         </button>
         <button
           type="button"
           className={`filter-tab ${filter === 'active' ? 'active' : ''}`}
           onClick={() => setFilter('active')}
         >
-          Active Orders ({orders.filter((o) => ['PENDING', 'ACCEPTED', 'PREPARING', 'READY'].includes(o.status)).length})
+          Active Orders ({studentOrders.filter((o) => ['PENDING', 'ACCEPTED', 'PREPARING', 'READY'].includes(o.status)).length})
         </button>
         <button
           type="button"

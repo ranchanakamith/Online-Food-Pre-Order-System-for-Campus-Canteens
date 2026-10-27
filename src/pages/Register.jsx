@@ -33,7 +33,7 @@ export default function Register() {
 
     setTimeout(() => {
       // Automatically log the new student in
-      login(regNo, password)
+      login(regNo, password, null, fullName)
       navigate('/student')
     }, 800)
   }

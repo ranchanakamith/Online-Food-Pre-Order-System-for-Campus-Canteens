@@ -1,14 +1,37 @@
-import { useState, useMemo } from 'react'
-import { Link } from 'react-router-dom'
+import { useState, useMemo, useEffect } from 'react'
+import { Link, useLocation } from 'react-router-dom'
 import { useFood } from '../context/FoodContext'
 import { useCart } from '../context/CartContext'
 import { useAuth } from '../context/AuthContext'
 
 export default function StudentDashboard() {
+  const location = useLocation()
   const { canteens, foods } = useFood()
   const { cart, addToCart, updateQuantity, totalItems } = useCart()
   const { currentUser } = useAuth()
-  const [searchTerm, setSearchTerm] = useState('')
+  const [selectedCategory, setSelectedCategory] = useState('All')
+  const categories = ['All', 'Lunch', 'Snacks', 'Drinks']
+
+  const [searchTerm, setSearchTerm] = useState(() => {
+    const params = new URLSearchParams(window.location.search)
+    return params.get('search') || ''
+  })
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search)
+    const q = params.get('search')
+    if (q !== null) {
+      setSearchTerm(q)
+    }
+  }, [location.search])
+
+  const handleSearchSubmit = (e) => {
+    e.preventDefault()
+    const resultsEl = document.getElementById('search-food-results')
+    if (resultsEl) {
+      resultsEl.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+  }
 
   const activeCanteens = useMemo(() => {
     return canteens.filter((c) => c.active !== false)
@@ -26,15 +49,20 @@ export default function StudentDashboard() {
   }, [activeCanteens, searchTerm])
 
   const filteredFoods = useMemo(() => {
-    if (!searchTerm.trim()) return foods.slice(0, 6)
-    const q = searchTerm.toLowerCase()
-    return foods.filter(
-      (f) =>
+    const q = searchTerm.toLowerCase().trim()
+    return foods.filter((f) => {
+      const matchesSearch =
+        !q ||
         f.name.toLowerCase().includes(q) ||
         f.description.toLowerCase().includes(q) ||
         f.category.toLowerCase().includes(q)
-    )
-  }, [foods, searchTerm])
+
+      const matchesCat =
+        selectedCategory === 'All' || f.category === selectedCategory
+
+      return matchesSearch && matchesCat
+    })
+  }, [foods, searchTerm, selectedCategory])
 
   const cartItemMap = useMemo(() => {
     const map = {}
@@ -46,54 +74,57 @@ export default function StudentDashboard() {
 
   return (
     <section className="section container page-top">
-      <div className="student-welcome">
+      {/* Clean Welcome Banner */}
+      <div className="student-welcome-clean">
         <div>
-          <span className="eyebrow">Student Dashboard</span>
-          <h1>Welcome, {currentUser?.name || 'Student'}!</h1>
-          <p>
-            Choose a canteen, pre-order your favorite meals, and pick them up hot
-            and fresh without waiting in long queues.
-          </p>
+          <span className="eyebrow">Student Dining Portal</span>
+          <h1>Hi, {currentUser?.name?.split(' ')[0] || 'Student'} 👋</h1>
+          <p>What would you like to order today?</p>
         </div>
         <div className="student-top-actions">
-          <Link to="/orders" className="btn btn-secondary">
-            📦 Track Orders
+          <Link to="/orders" className="btn btn-secondary btn-sm">
+            📦 My Orders
           </Link>
-          <Link to="/cart" className="btn btn-primary">
+          <Link to="/cart" className="btn btn-primary btn-sm">
             🛒 Cart ({totalItems})
           </Link>
         </div>
       </div>
 
-      <div className="search-bar dashboard-search">
-        <input
-          type="text"
-          placeholder="Search foods, drinks, or campus canteens..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-        />
-        {searchTerm ? (
-          <button
-            type="button"
-            className="btn btn-secondary"
-            onClick={() => setSearchTerm('')}
-          >
-            Clear
-          </button>
-        ) : (
-          <button type="button" className="btn btn-primary">
-            Search
-          </button>
-        )}
-      </div>
+      {/* Clean Search Bar */}
+      <form onSubmit={handleSearchSubmit} className="search-bar dashboard-search">
+        <div className="search-input-wrapper">
+          <span className="search-input-icon">🔍</span>
+          <input
+            type="text"
+            placeholder="Search meals, drinks, or canteens..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+          {searchTerm && (
+            <button
+              type="button"
+              className="clear-search-btn"
+              onClick={() => setSearchTerm('')}
+              title="Clear search"
+            >
+              ×
+            </button>
+          )}
+        </div>
+        <button type="submit" className="btn btn-primary search-action-btn">
+          Search
+        </button>
+      </form>
 
+      {/* Canteens List */}
       <div className="section-heading compact">
         <div>
-          <span className="eyebrow">Campus Dining Locations</span>
+          <span className="eyebrow">Campus Dining</span>
           <h2>Canteens ({filteredCanteens.length})</h2>
         </div>
         <Link to="/canteens" className="text-link">
-          View all canteens →
+          View all →
         </Link>
       </div>
 
@@ -118,10 +149,10 @@ export default function StudentDashboard() {
                   <h3>{canteen.name}</h3>
                   <span className="canteen-eta-pill">⚡ {canteen.eta}</span>
                 </div>
-                <p>{canteen.location}</p>
+                <p>📍 {canteen.location}</p>
                 <div className="meta-row">
-                  <span>Hours: {canteen.openingTime || '07:30'}–{canteen.closingTime || '18:00'}</span>
-                  <span className="text-link">Explore Menu →</span>
+                  <span>🕒 {canteen.openingTime || '07:30'}–{canteen.closingTime || '18:00'}</span>
+                  <span className="text-link">Menu →</span>
                 </div>
               </div>
             </Link>
@@ -129,16 +160,45 @@ export default function StudentDashboard() {
         </div>
       )}
 
-      <div className="section-heading compact top-gap">
+      {/* Category Pills & Meals Section */}
+      <div id="search-food-results" className="section-heading compact top-gap">
         <div>
-          <span className="eyebrow">Chef Recommendations</span>
-          <h2>{searchTerm ? 'Matching Meals' : 'Popular meals today'}</h2>
+          <span className="eyebrow">Daily Specials</span>
+          <h2>
+            {searchTerm
+              ? `Results for "${searchTerm}" (${filteredFoods.length})`
+              : 'Popular Meals Today'}
+          </h2>
+        </div>
+
+        {/* Clean Category Filters */}
+        <div className="category-tabs mini-tabs">
+          {categories.map((cat) => (
+            <button
+              key={cat}
+              type="button"
+              className={selectedCategory === cat ? 'active' : ''}
+              onClick={() => setSelectedCategory(cat)}
+            >
+              {cat}
+            </button>
+          ))}
         </div>
       </div>
 
       {filteredFoods.length === 0 ? (
         <div className="panel empty-search-panel">
-          <p>No meals matching "{searchTerm}".</p>
+          <p>No meals found matching your filter.</p>
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
+            onClick={() => {
+              setSearchTerm('')
+              setSelectedCategory('All')
+            }}
+          >
+            Clear Filters
+          </button>
         </div>
       ) : (
         <div className="card-grid two">
@@ -152,7 +212,6 @@ export default function StudentDashboard() {
               <article className="food-card" key={food.id}>
                 <div className="food-image-wrapper">
                   <img src={food.image} alt={food.name} loading="lazy" />
-                  {food.tag && <span className="food-tag-badge">{food.tag}</span>}
                   {!isAvailable && <span className="food-sold-out-overlay">Sold Out</span>}
                 </div>
 
@@ -160,7 +219,6 @@ export default function StudentDashboard() {
                   <div className="food-card-meta">
                     <span className="small-label">{food.category}</span>
                     <span className="food-canteen-source-tag">📍 {foodCanteen.name}</span>
-                    <span className="stock-pill in-stock">{availableStock} available</span>
                   </div>
                   <h3>{food.name}</h3>
                   <p>{food.description}</p>
@@ -169,7 +227,7 @@ export default function StudentDashboard() {
                     <strong>Rs. {food.price}</strong>
 
                     {!isAvailable ? (
-                      <button className="btn btn-secondary" disabled>
+                      <button className="btn btn-secondary btn-sm" disabled>
                         Sold Out
                       </button>
                     ) : currentQty > 0 ? (
@@ -193,7 +251,7 @@ export default function StudentDashboard() {
                     ) : (
                       <button
                         type="button"
-                        className="btn btn-primary add-cart-btn"
+                        className="btn btn-primary btn-sm add-cart-btn"
                         onClick={() => addToCart(food, foodCanteen)}
                       >
                         + Add to Cart

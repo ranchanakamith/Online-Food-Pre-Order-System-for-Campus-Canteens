@@ -31,32 +31,35 @@ export default function Canteens() {
     <section className="section container page-top">
       <div className="section-heading">
         <div>
-          <span className="eyebrow">Campus dining</span>
-          <h1>Choose a Canteen ({activeCanteens.length})</h1>
-          <p>Explore campus dining halls, view menus, and pre-order meals before you arrive.</p>
+          <span className="eyebrow">Campus Dining</span>
+          <h1>Campus Canteens ({activeCanteens.length})</h1>
+          <p>Explore daily menus and pre-order fresh meals from campus dining halls.</p>
         </div>
       </div>
 
-      <div className="search-bar">
-        <input
-          placeholder="Search by canteen name, location, or cuisine..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-        />
-        {searchTerm ? (
-          <button
-            type="button"
-            className="btn btn-secondary"
-            onClick={() => setSearchTerm('')}
-          >
-            Clear
-          </button>
-        ) : (
-          <button type="button" className="btn btn-primary">
-            Search
-          </button>
-        )}
-      </div>
+      <form onSubmit={(e) => e.preventDefault()} className="search-bar">
+        <div className="search-input-wrapper">
+          <span className="search-input-icon">🔍</span>
+          <input
+            placeholder="Search by canteen name, location, or cuisine..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+          {searchTerm && (
+            <button
+              type="button"
+              className="clear-search-btn"
+              onClick={() => setSearchTerm('')}
+              title="Clear search"
+            >
+              ×
+            </button>
+          )}
+        </div>
+        <button type="submit" className="btn btn-primary search-action-btn">
+          Search
+        </button>
+      </form>
 
       {filteredCanteens.length === 0 ? (
         <div className="panel empty-search-panel">

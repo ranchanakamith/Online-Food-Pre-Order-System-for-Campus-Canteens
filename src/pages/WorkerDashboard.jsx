@@ -28,7 +28,7 @@ const photoPresets = [
 export default function WorkerDashboard() {
   const { canteens, foods, updateFoodStock, addFood, removeFood } = useFood()
   const { orders, advanceOrderStatus } = useOrders()
-  const { currentUser, switchRole } = useAuth()
+  const { currentUser } = useAuth()
 
   const [savedFoodId, setSavedFoodId] = useState(null)
   const [orderFilter, setOrderFilter] = useState('active')
@@ -149,38 +149,16 @@ export default function WorkerDashboard() {
           <div className="access-denied-icon">🔒</div>
           <h2>Canteen Staff Portal Access Restricted</h2>
           <p>
-            You are currently signed in as <strong>{currentUser?.name || 'Student'} ({currentUser?.id})</strong>.
-            This kitchen management portal requires authorized Canteen Staff credentials.
+            {currentUser
+              ? `You are currently signed in as ${currentUser.name} (${currentUser.id}). This kitchen management portal requires authorized Canteen Staff credentials.`
+              : 'This kitchen management portal requires authorized Canteen Staff credentials. Please sign in with your staff account.'}
           </p>
-          <div className="access-denied-canteen-list">
-            <span>To inspect a canteen's worker view, sign in as that canteen's staff:</span>
-            <div className="quick-access-buttons">
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={() => switchRole('worker', 1)}
-              >
-                👨‍🍳 Login as Main Canteen Staff
-              </button>
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={() => switchRole('worker', 2)}
-              >
-                👨‍🍳 Login as Engineering Canteen Staff
-              </button>
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={() => switchRole('worker', 3)}
-              >
-                👨‍🍳 Login as Student Centre Cafe Staff
-              </button>
-            </div>
-          </div>
-          <div className="access-denied-footer">
-            <Link to="/student" className="btn btn-primary">
-              Return to Student Dashboard
+          <div className="access-denied-footer" style={{ marginTop: '20px', display: 'flex', gap: '12px', justifyContent: 'center' }}>
+            <Link to="/login" className="btn btn-primary">
+              Sign In with Staff Account
+            </Link>
+            <Link to={currentUser ? "/student" : "/home"} className="btn btn-secondary">
+              Back to Home
             </Link>
           </div>
         </div>
@@ -197,23 +175,6 @@ export default function WorkerDashboard() {
           <span>
             <strong>Facility Access Lock Active:</strong> You are authorized to view and manage <strong>{assignedCanteen.name}</strong> only. All other campus canteen inventories and orders are strictly isolated.
           </span>
-        </div>
-
-        {/* Demo Facility Switcher for Examiners / Evaluators */}
-        <div className="canteen-eval-switch">
-          <span className="eval-label">Switch Staff Canteen (Test Mode):</span>
-          <select
-            value={activeCanteenId}
-            onChange={(e) => switchRole('worker', Number(e.target.value))}
-            className="eval-select"
-            title="Switch worker to another canteen to test facility isolation"
-          >
-            {canteenStaffAccounts.map((staff) => (
-              <option key={staff.canteenId} value={staff.canteenId}>
-                {staff.canteenName} ({staff.name})
-              </option>
-            ))}
-          </select>
         </div>
       </div>
 

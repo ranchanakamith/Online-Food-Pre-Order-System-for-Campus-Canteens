@@ -6,7 +6,7 @@ export default function Navbar() {
   const location = useLocation()
   const navigate = useNavigate()
   const { totalItems } = useCart()
-  const { currentUser, logout, switchRole } = useAuth()
+  const { currentUser, logout } = useAuth()
 
   const publicPages = ['/login', '/register', '/forgot-password']
   const isPublicAuthPage = publicPages.includes(location.pathname)
@@ -22,12 +22,12 @@ export default function Navbar() {
     return (
       <header className="navbar">
         <div className="container nav-inner">
-          <NavLink to="/" className="brand">
+          <NavLink to="/home" className="brand">
             <span className="brand-mark">CB</span>
             <span>CampusBite</span>
           </NavLink>
           <div className="nav-actions">
-            <NavLink to="/" className="btn btn-ghost">Home</NavLink>
+            <NavLink to="/home" className="btn btn-ghost">Home</NavLink>
             <NavLink to="/login" className="btn btn-ghost">Login</NavLink>
             <NavLink to="/register" className="btn btn-primary">Create Account</NavLink>
           </div>
@@ -46,20 +46,13 @@ export default function Navbar() {
           </NavLink>
           <div className="role-nav-badge worker-badge">
             <span className="live-pulse" />
-            Kitchen Staff Portal
+            Kitchen Staff Portal {currentUser?.canteenName ? `· ${currentUser.canteenName}` : ''}
           </div>
           <div className="nav-actions">
-            <button
-              type="button"
-              className="btn btn-ghost role-switch-btn"
-              onClick={() => {
-                switchRole('student')
-                navigate('/student')
-              }}
-              title="Switch to Student View"
-            >
-              🎓 Switch to Student
-            </button>
+            <div className="user-profile-chip">
+              <span className="user-avatar-initial">👨‍🍳</span>
+              <span className="user-chip-name">{currentUser?.name || 'Staff Member'}</span>
+            </div>
             <button
               type="button"
               className="btn btn-secondary"
@@ -85,17 +78,10 @@ export default function Navbar() {
             🛡️ Administrator Portal
           </div>
           <div className="nav-actions">
-            <button
-              type="button"
-              className="btn btn-ghost role-switch-btn"
-              onClick={() => {
-                switchRole('student')
-                navigate('/student')
-              }}
-              title="Switch to Student View"
-            >
-              🎓 Switch to Student
-            </button>
+            <div className="user-profile-chip">
+              <span className="user-avatar-initial">🛡️</span>
+              <span className="user-chip-name">{currentUser?.name || 'Admin'}</span>
+            </div>
             <button
               type="button"
               className="btn btn-secondary"
@@ -113,13 +99,13 @@ export default function Navbar() {
   return (
     <header className="navbar">
       <div className="container nav-inner">
-        <NavLink to="/student" className="brand">
+        <NavLink to={currentUser ? '/student' : '/home'} className="brand">
           <span className="brand-mark">CB</span>
           <span>CampusBite</span>
         </NavLink>
 
         <nav className="nav-links">
-          <NavLink to="/student" end>
+          <NavLink to={currentUser ? '/student' : '/home'} end>
             Home
           </NavLink>
           <NavLink to="/canteens">Canteens</NavLink>
@@ -131,29 +117,32 @@ export default function Navbar() {
         </nav>
 
         <div className="nav-actions">
-          <div className="user-profile-chip" title="Current logged in student">
-            <span className="user-avatar-initial">
-              {currentUser?.name ? currentUser.name.charAt(0) : 'S'}
-            </span>
-            <span className="user-chip-name">{currentUser?.name || 'Student'}</span>
-          </div>
-
-          <div className="quick-portal-switcher">
-            <NavLink to="/worker" className="btn btn-ghost small-btn" title="Open Kitchen Portal">
-              👨‍🍳 Worker
-            </NavLink>
-            <NavLink to="/admin" className="btn btn-ghost small-btn" title="Open Admin Portal">
-              🛡️ Admin
-            </NavLink>
-          </div>
-
-          <button
-            type="button"
-            className="btn btn-secondary"
-            onClick={handleLogout}
-          >
-            Logout
-          </button>
+          {currentUser ? (
+            <>
+              <div className="user-profile-chip" title={`Signed in as ${currentUser.name}`}>
+                <span className="user-avatar-initial">
+                  {currentUser.name ? currentUser.name.charAt(0) : 'S'}
+                </span>
+                <span className="user-chip-name">{currentUser.name}</span>
+              </div>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={handleLogout}
+              >
+                Logout
+              </button>
+            </>
+          ) : (
+            <>
+              <NavLink to="/login" className="btn btn-ghost">
+                Login
+              </NavLink>
+              <NavLink to="/register" className="btn btn-primary">
+                Sign Up
+              </NavLink>
+            </>
+          )}
         </div>
       </div>
     </header>
