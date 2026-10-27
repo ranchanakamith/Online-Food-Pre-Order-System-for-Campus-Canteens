@@ -3,6 +3,7 @@ import { AuthProvider } from './context/AuthContext'
 import { FoodProvider } from './context/FoodContext'
 import { OrderProvider } from './context/OrderContext'
 import { CartProvider } from './context/CartContext'
+import RequireRole from './components/RequireRole'
 import Navbar from './components/Navbar'
 import Footer from './components/Footer'
 import Toast from './components/Toast'
@@ -28,19 +29,20 @@ export default function App() {
               <Navbar />
               <main>
                 <Routes>
-                  <Route path="/" element={<Navigate to="/login" replace />} />
+                  <Route path="/" element={<Navigate to="/home" replace />} />
                   <Route path="/login" element={<Login />} />
                   <Route path="/home" element={<Home />} />
                   <Route path="/register" element={<Register />} />
                   <Route path="/forgot-password" element={<ForgotPassword />} />
-                  <Route path="/student" element={<StudentDashboard />} />
+                  <Route path="/student" element={<RequireRole allowedRoles={['student']}><StudentDashboard /></RequireRole>} />
                   <Route path="/canteens" element={<Canteens />} />
                   <Route path="/canteens/:id/menu" element={<Menu />} />
                   <Route path="/cart" element={<Cart />} />
-                  <Route path="/orders" element={<Orders />} />
-                  <Route path="/worker" element={<WorkerDashboard />} />
-                  <Route path="/staff" element={<WorkerDashboard />} />
-                  <Route path="/admin" element={<AdminDashboard />} />
+                  <Route path="/orders" element={<RequireRole allowedRoles={['student']}><Orders /></RequireRole>} />
+                  <Route path="/worker" element={<RequireRole allowedRoles={['worker']}><WorkerDashboard /></RequireRole>} />
+                  <Route path="/staff" element={<RequireRole allowedRoles={['worker']}><WorkerDashboard /></RequireRole>} />
+                  <Route path="/admin" element={<RequireRole allowedRoles={['admin']}><AdminDashboard /></RequireRole>} />
+                  <Route path="*" element={<Navigate to="/home" replace />} />
                 </Routes>
               </main>
               <Footer />

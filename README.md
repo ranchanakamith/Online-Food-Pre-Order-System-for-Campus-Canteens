@@ -1,6 +1,6 @@
 # CampusBite - Online Food Pre-Order System for Campus Canteens
 
-An interactive, responsive web application built with **React**, **Vite**, and **React Router** designed for university campus canteens. It enables students to pre-order meals to eliminate lunch queues, allows canteen kitchen staff to manage food stock and live orders, and gives administrators full oversight of campus dining facilities.
+An interactive, responsive web application built with **React**, **Vite**, and **React Router** designed for university campus canteens. It demonstrates meal pre-orders, canteen stock management, and campus dining administration in a browser-only demo.
 
 ---
 
@@ -12,23 +12,23 @@ An interactive, responsive web application built with **React**, **Vite**, and *
 - **Item Removal & Empty States**: Remove individual items or clear the entire cart. Clean empty-cart view with direct links back to canteen menus.
 - **Cooking Instructions**: Add custom notes per food item (e.g., "Less spicy", "No onions").
 - **Pickup Scheduling & Dining Preference**: Select exact pickup time slots and toggle between **🥡 Takeaway** and **🍽️ Dine-in**.
-- **Payment Method Selection**: Choose between Pay at Counter (Cash), Student ID Card balance, or Online QR/Card.
+- **Payment**: Pay at the counter is available in the demo. Student ID and online payments stay disabled until a balance or payment provider is connected.
 - **Toast Notifications**: Floating visual confirmation whenever meals are added or modified.
-- **Persistent Storage**: Cart state automatically syncs to `localStorage`, preserving items on page reloads.
+- **Browser Storage**: Cart, demo orders, and registered demo accounts are saved in this browser's storage; they are not shared across devices or users.
 
-### 2. 📦 Real-Time Order Lifecycle & Tracking
+### 2. 📦 Order Lifecycle & Tracking
 - **Order Placement**: Placing an order immediately creates a unique Order ID (`#CBxxxx`) with timestamp, breakdown, and estimated pickup time.
-- **Live 5-Stage Timeline**: Visual progress tracker showing `Placed` ➔ `Accepted` ➔ `Preparing` ➔ `Ready for Pickup` ➔ `Completed`.
-- **Order Synchronization**: Orders placed by students instantly appear in the **Canteen Worker Portal** queue!
+- **5-Stage Timeline**: Visual progress tracker showing `Placed` ➔ `Accepted` ➔ `Preparing` ➔ `Ready for Pickup` ➔ `Completed`.
+- **In-App Order Queue**: Orders placed in this browser session appear in the worker queue in the same running app.
 - **Order Management**: Filter by Active or Completed orders, cancel pending orders, or use the **🔁 Order Again** button to re-add past items with 1 click.
 
 ### 3. 👨‍🍳 Canteen Worker & Kitchen Dashboard (`/worker`)
-- **Synchronized Order Queue**: Receive student orders in real time. Advance order statuses (`Accept Order` ➔ `Start Preparing` ➔ `Mark Ready` ➔ `Complete Order`).
+- **Order Queue**: Advance in-app order statuses (Accept Order ➔ Start Preparing ➔ Mark Ready ➔ Complete Order).
 - **Live Food Stock & Target Tracking**: Set daily targets, track cooked portions vs. portions sold, and calculate available portions automatically.
 - **Instant Sold-Out Toggle**: Toggle availability with one click. When an item is marked "Sold Out", the student menu immediately reflects it and disables ordering.
 
 ### 4. 🛡️ Administrator Dashboard (`/admin`)
-- **Live Analytics**: Real-time KPI statistics for Total Active Canteens, Menu Food Items, Total Orders Placed, and Total Campus Revenue.
+- **Demo Analytics**: Local KPI statistics for Total Active Canteens, Menu Food Items, Total Orders Placed, and Total Campus Revenue.
 - **Facility Management**: Register new canteens with operating hours and cuisine descriptions. Toggle facility operational status or delete canteens.
 
 ### 5. 🔍 Real-Time Search & Filtering
@@ -36,13 +36,15 @@ An interactive, responsive web application built with **React**, **Vite**, and *
 - Filter food items by category tabs: `All`, `Breakfast`, `Lunch`, `Snacks`, `Drinks`.
 
 ### 6. 👥 Role-Based Authentication & 1-Click Quick Demo
-- Built-in `AuthContext` managing Student, Kitchen Worker, and Administrator profiles.
-- **1-Click Demo Logins** on `/login`:
+- Browser-only demo authentication for Student, Kitchen Worker, and Administrator profiles. It is for demonstration, not production security; production use needs server-side authentication.
+- **Quick demo logins** on the login page (all use password campusbite123):
   - 🎓 **Student**: `IT20231234`
   - 👨‍🍳 **Kitchen Staff**: `worker001`
   - 🛡️ **Administrator**: `admin001`
 
 ---
+
+Password reset email and real payment processing are not connected in this demo. Orders, inventory, and accounts stay in browser storage; multi-device synchronization needs a backend service.
 
 ## 🛠️ Tech Stack
 
@@ -80,7 +82,7 @@ An interactive, responsive web application built with **React**, **Vite**, and *
 | Route | Description |
 |---|---|
 | `/` or `/home` | Public Landing Page with hero showcase and features overview |
-| `/login` | Authentication page with 1-click Quick Demo logins |
+| /login | Browser demo login; all demo accounts use campusbite123 |
 | `/register` | Student registration with validation and auto-login |
 | `/student` | Student Dashboard with canteen directory and recommended meals |
 | `/canteens` | Directory of all active campus canteens with search |
@@ -88,4 +90,4 @@ An interactive, responsive web application built with **React**, **Vite**, and *
 | `/cart` | Dynamic cart with quantity modifier, notes, and checkout |
 | `/orders` | Order history & live 5-step pickup progress timeline |
 | `/worker` | Kitchen worker order processing queue and daily stock manager |
-| `/admin` | Campus dining facilities manager and real-time revenue stats |
+| /admin | Campus dining facilities manager and local demo statistics |

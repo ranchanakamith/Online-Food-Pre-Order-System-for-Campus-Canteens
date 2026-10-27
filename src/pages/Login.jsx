@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
-import { useAuth } from '../context/AuthContext'
+import { useAuth, demoCredentials } from '../context/AuthContext'
 
 export default function Login() {
   const navigate = useNavigate()
@@ -9,23 +9,32 @@ export default function Login() {
   const [loginId, setLoginId] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
+  const [error, setError] = useState('')
 
   const queryParams = new URLSearchParams(location.search)
   const redirect = queryParams.get('redirect')
 
+  const finishLogin = async (id, secret) => {
+    setError('')
+    try {
+      const user = await login(id, secret)
+      if (!user) {
+        setError('ID or password is incorrect. Use a registered student account or a listed demo account.')
+        return
+      }
+      const safeRedirect = redirect && redirect.startsWith('/') && !redirect.startsWith('//')
+        ? redirect
+        : null
+      if (safeRedirect) navigate(safeRedirect)
+      else navigate(user.role === 'admin' ? '/admin' : user.role === 'worker' ? '/worker' : '/student')
+    } catch {
+      setError('Could not sign in. Please try again.')
+    }
+  }
+
   const handleLogin = (e) => {
     e.preventDefault()
-    const user = login(loginId, password)
-
-    if (redirect) {
-      navigate(redirect)
-    } else if (user.role === 'admin') {
-      navigate('/admin')
-    } else if (user.role === 'worker') {
-      navigate('/worker')
-    } else {
-      navigate('/student')
-    }
+    void finishLogin(loginId, password)
   }
 
   return (
@@ -50,7 +59,8 @@ export default function Login() {
         <div className="auth-card">
           <span className="eyebrow">Account Access</span>
           <h2>Sign In to CampusBite</h2>
-          <p>Enter your student registration number or staff ID to proceed.</p>
+          <p>Sign in with a registered student account or choose a demo account.</p>
+          {error && <div className="auth-error-banner" role="alert">{error}</div>}
 
           {redirect === '/cart' && (
             <div className="auth-notice-banner">
@@ -63,7 +73,7 @@ export default function Login() {
               Registration No. / Staff ID
               <input
                 type="text"
-                placeholder="e.g. IT20231234, worker001, admin001"
+                placeholder="Student ID, worker001, or admin001"
                 value={loginId}
                 onChange={(e) => setLoginId(e.target.value)}
                 required
@@ -102,6 +112,22 @@ export default function Login() {
 
             
           </form>
+
+          <div className="quick-demo-login-box">
+            <span className="quick-login-title">Demo password: campusbite123</span>
+            <div className="quick-login-buttons">
+              {demoCredentials.map((account) => (
+                <button
+                  key={account.id}
+                  type="button"
+                  className={'btn-quick-role ' + account.role}
+                  onClick={() => void finishLogin(account.id, account.password)}
+                >
+                  {account.role === 'admin' ? 'Admin' : account.role === 'worker' ? 'Staff' : 'Student'} · {account.id}
+                </button>
+              ))}
+            </div>
+          </div>
 
           <div className="guest-explore-divider">
             <span>or browse first</span>

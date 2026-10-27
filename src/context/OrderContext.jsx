@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react'
+import { useFood } from './FoodContext'
 
 const OrderContext = createContext()
 
@@ -32,7 +33,7 @@ const initialSeedOrders = [
     total: 1400,
     pickup: '12:45 PM',
     orderType: 'Dine-in',
-    paymentMethod: 'Student ID Card',
+    paymentMethod: 'Pay at Counter',
     status: 'PENDING',
     createdAt: new Date(Date.now() - 10 * 60 * 1000).toISOString(),
   },
@@ -66,7 +67,7 @@ const initialSeedOrders = [
     total: 830,
     pickup: '1:15 PM',
     orderType: 'Takeaway',
-    paymentMethod: 'Online Payment',
+    paymentMethod: 'Pay at Counter',
     status: 'PENDING',
     createdAt: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
   },
@@ -84,6 +85,7 @@ export const statusLabels = {
 }
 
 export function OrderProvider({ children }) {
+  const { reserveFood, releaseFood } = useFood()
   const [orders, setOrders] = useState(() => {
     try {
       const saved = localStorage.getItem('campusbite_orders')
@@ -137,6 +139,9 @@ export function OrderProvider({ children }) {
         ? 'Student Centre Cafe'
         : 'Main Canteen')
 
+    const reservation = reserveFood(items, orderCanteenId)
+    if (!reservation.ok) return { error: reservation.error }
+
     const newOrder = {
       id: newOrderId,
       student: studentId || 'IT20231234',
@@ -164,25 +169,26 @@ export function OrderProvider({ children }) {
   }
 
   const advanceOrderStatus = (orderId) => {
-    setOrders((current) =>
-      current.map((order) => {
-        if (order.id !== orderId || order.status === 'COMPLETED' || order.status === 'CANCELLED') {
-          return order
-        }
-        const currentIndex = statusSequence.indexOf(order.status)
-        if (currentIndex === -1 || currentIndex === statusSequence.length - 1) return order
-        return { ...order, status: statusSequence[currentIndex + 1] }
-      })
-    )
+    const target = orders.find((order) => order.id === orderId)
+    if (!target || ['COMPLETED', 'CANCELLED'].includes(target.status)) return
+    const currentIndex = statusSequence.indexOf(target.status)
+    if (currentIndex < 0 || currentIndex >= statusSequence.length - 1) return
+    const nextStatus = statusSequence[currentIndex + 1]
+    if (nextStatus === 'COMPLETED') releaseFood(target.items || [], target.canteenId, true)
+    setOrders((current) => current.map((order) =>
+      order.id === orderId ? { ...order, status: nextStatus } : order
+    ))
   }
 
   const cancelOrder = (orderId) => {
-    setOrders((current) =>
-      current.map((order) => {
-        if (order.id !== orderId) return order
-        return { ...order, status: 'CANCELLED' }
-      })
-    )
+    const target = orders.find((order) => order.id === orderId)
+    if (!target || target.status !== 'PENDING') return
+    releaseFood(target.items || [], target.canteenId, false)
+    setOrders((current) => current.map((order) =>
+      order.id === orderId && order.status === 'PENDING'
+        ? { ...order, status: 'CANCELLED' }
+        : order
+    ))
   }
 
   return (

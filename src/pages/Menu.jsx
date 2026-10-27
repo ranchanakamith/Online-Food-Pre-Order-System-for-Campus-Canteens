@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { useFood } from '../context/FoodContext'
+import { useFood, getFoodInventory } from '../context/FoodContext'
 import { useCart } from '../context/CartContext'
 
 export default function Menu() {
@@ -37,11 +37,11 @@ export default function Menu() {
   // Map cart items by food ID for quick quantity lookup
   const cartItemMap = useMemo(() => {
     const map = {}
-    cart.forEach((item) => {
-      map[item.id] = item.quantity
-    })
+    if (cart[0] && Number(cart[0].canteenId) === Number(canteen.id)) {
+      cart.forEach((item) => { map[item.id] = item.quantity })
+    }
     return map
-  }, [cart])
+  }, [cart, canteen.id])
 
   const handleSearchSubmit = (e) => {
     e.preventDefault()
@@ -145,8 +145,9 @@ export default function Menu() {
       ) : (
         <div id="menu-items-grid" className="card-grid two">
           {filteredFoods.map((food) => {
-            const availableStock = Math.max(food.prepared - food.sold, 0)
-            const isAvailable = food.enabled !== false && availableStock > 0
+            const inventory = getFoodInventory(food, canteen.id)
+            const availableStock = Math.max(inventory.prepared - inventory.sold - inventory.reserved, 0)
+            const isAvailable = canteen.active !== false && inventory.enabled && availableStock > 0
             const currentQtyInCart = cartItemMap[food.id] || 0
 
             return (
@@ -171,7 +172,7 @@ export default function Menu() {
                   <p>{food.description}</p>
 
                   <div className="card-row food-bottom">
-                    <strong className="food-price-text">Rs. {food.price}</strong>
+                    <strong className="food-price-text">Rs. {inventory.price}</strong>
 
                     {!isAvailable ? (
                       <button className="btn btn-secondary" disabled>
@@ -192,6 +193,7 @@ export default function Menu() {
                           type="button"
                           className="qty-btn small"
                           onClick={() => updateQuantity(food.id, currentQtyInCart + 1)}
+                          disabled={currentQtyInCart >= availableStock}
                           title="Increase quantity"
                         >
                           +
@@ -201,7 +203,7 @@ export default function Menu() {
                       <button
                         type="button"
                         className="btn btn-primary add-cart-btn"
-                        onClick={() => addToCart(food, canteen)}
+                        onClick={() => addToCart({ ...food, price: inventory.price }, canteen)}
                       >
                         + Add to Cart
                       </button>

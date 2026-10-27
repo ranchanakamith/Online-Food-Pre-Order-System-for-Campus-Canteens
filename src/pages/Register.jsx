@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext'
 
 export default function Register() {
   const navigate = useNavigate()
-  const { login } = useAuth()
+  const { registerStudent } = useAuth()
 
   const [fullName, setFullName] = useState('')
   const [regNo, setRegNo] = useState('')
@@ -15,27 +15,22 @@ export default function Register() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
-
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters long.')
-      return
-    }
 
     if (password !== confirmPassword) {
       setError('Passwords do not match. Please verify your password.')
       return
     }
 
-    setSuccess(true)
-
-    setTimeout(() => {
-      // Automatically log the new student in
-      login(regNo, password, null, fullName)
+    try {
+      await registerStudent({ name: fullName, id: regNo, email, faculty, password })
+      setSuccess(true)
       navigate('/student')
-    }, 800)
+    } catch (registrationError) {
+      setError(registrationError.message || 'Could not create the account.')
+    }
   }
 
   return (
@@ -43,7 +38,7 @@ export default function Register() {
       <div className="auth-card register-card">
         <span className="eyebrow">Student Registration</span>
         <h2>Create your account</h2>
-        <p>Register with your university credentials to pre-order meals from campus canteens.</p>
+        <p>Create a student profile for this browser demo. Use the same registration number and password to sign in again.</p>
 
         {error && <div className="auth-error-banner">⚠️ {error}</div>}
         {success && <div className="auth-success-banner">✓ Account created! Redirecting to student dashboard...</div>}

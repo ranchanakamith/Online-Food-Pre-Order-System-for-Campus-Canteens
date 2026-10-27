@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { useFood } from '../context/FoodContext'
+import { useFood, getFoodInventory } from '../context/FoodContext'
 import { useOrders } from '../context/OrderContext'
-import { useAuth, canteenStaffAccounts } from '../context/AuthContext'
+import { useAuth } from '../context/AuthContext'
 
 const actionLabels = {
   PENDING: 'Accept Order',
@@ -48,7 +48,7 @@ export default function WorkerDashboard() {
   })
 
   // 1. Role Access Control Check: Ensure user has worker permissions
-  const isWorker = currentUser?.role === 'worker' || currentUser?.role === 'admin'
+  const isWorker = currentUser?.role === 'worker'
 
   // 2. Identify the specific canteen assigned to this worker
   const activeCanteenId = currentUser?.canteenId || 1
@@ -71,18 +71,18 @@ export default function WorkerDashboard() {
   }, [orders, activeCanteenId])
 
   const summary = useMemo(() => {
-    const prepared = canteenFoods.reduce((sum, food) => sum + (food.prepared || 0), 0)
-    const sold = canteenFoods.reduce((sum, food) => sum + (food.sold || 0), 0)
-    const available = canteenFoods.reduce(
-      (sum, food) => sum + Math.max((food.prepared || 0) - (food.sold || 0), 0),
-      0
-    )
+    const prepared = canteenFoods.reduce((sum, food) => sum + getFoodInventory(food, activeCanteenId).prepared, 0)
+    const sold = canteenFoods.reduce((sum, food) => sum + getFoodInventory(food, activeCanteenId).sold, 0)
+    const available = canteenFoods.reduce((sum, food) => {
+      const inventory = getFoodInventory(food, activeCanteenId)
+      return sum + Math.max(inventory.prepared - inventory.sold - inventory.reserved, 0)
+    }, 0)
     const waitingOrders = canteenOrders.filter(
       (order) => !['READY', 'COMPLETED', 'CANCELLED'].includes(order.status)
     ).length
 
     return { prepared, sold, available, waitingOrders }
-  }, [canteenFoods, canteenOrders])
+  }, [canteenFoods, canteenOrders, activeCanteenId])
 
   const filteredOrders = useMemo(() => {
     if (orderFilter === 'active') {
@@ -261,11 +261,12 @@ export default function WorkerDashboard() {
         ) : (
           <div className="worker-food-grid">
             {canteenFoods.map((food) => {
-              const availableQty = Math.max((food.prepared || 0) - (food.sold || 0), 0)
-              const targetQty = food.target || 0
-              const preparedQty = food.prepared || 0
+              const inventory = getFoodInventory(food, activeCanteenId)
+              const availableQty = Math.max(inventory.prepared - inventory.sold - inventory.reserved, 0)
+              const targetQty = inventory.target
+              const preparedQty = inventory.prepared
               const needToPrepare = Math.max(targetQty - preparedQty, 0)
-              const isAvailable = food.enabled !== false && availableQty > 0
+              const isAvailable = inventory.enabled && availableQty > 0
 
               return (
                 <article className="worker-food-card" key={food.id}>
@@ -280,7 +281,7 @@ export default function WorkerDashboard() {
                       )}
                       <div>
                         <h3>{food.name}</h3>
-                        <p>Rs. {food.price} per portion</p>
+                        <p>Rs. {inventory.price} per portion</p>
                         <span className="worker-category-tag">{food.category || 'Lunch'}</span>
                       </div>
                     </div>
@@ -288,7 +289,7 @@ export default function WorkerDashboard() {
                     <button
                       type="button"
                       className={`worker-status-toggle ${isAvailable ? 'is-available' : 'is-sold-out'}`}
-                      onClick={() => updateFoodStock(food.id, 'enabled', !food.enabled)}
+                      onClick={() => updateFoodStock(food.id, 'enabled', !inventory.enabled, activeCanteenId)}
                       title={isAvailable ? 'Click to mark as Sold Out' : 'Click to enable availability'}
                     >
                       <span />
@@ -303,7 +304,7 @@ export default function WorkerDashboard() {
                     </div>
                     <div className="worker-stock-divider" />
                     <div>
-                      <strong>{food.sold || 0}</strong>
+                      <strong>{inventory.sold}</strong>
                       <span>Sold</span>
                     </div>
                     <div className="worker-stock-divider" />
@@ -319,8 +320,8 @@ export default function WorkerDashboard() {
                       <input
                         type="number"
                         min="0"
-                        value={food.price}
-                        onChange={(e) => updateFoodStock(food.id, 'price', e.target.value)}
+                        value={inventory.price}
+                        onChange={(e) => updateFoodStock(food.id, 'price', e.target.value, activeCanteenId)}
                       />
                     </label>
 
@@ -329,8 +330,8 @@ export default function WorkerDashboard() {
                       <input
                         type="number"
                         min="0"
-                        value={food.target || 0}
-                        onChange={(e) => updateFoodStock(food.id, 'target', e.target.value)}
+                        value={inventory.target}
+                        onChange={(e) => updateFoodStock(food.id, 'target', e.target.value, activeCanteenId)}
                       />
                     </label>
 
@@ -339,8 +340,8 @@ export default function WorkerDashboard() {
                       <input
                         type="number"
                         min="0"
-                        value={food.prepared || 0}
-                        onChange={(e) => updateFoodStock(food.id, 'prepared', e.target.value)}
+                        value={inventory.prepared}
+                        onChange={(e) => updateFoodStock(food.id, 'prepared', e.target.value, activeCanteenId)}
                       />
                     </label>
 
@@ -349,9 +350,9 @@ export default function WorkerDashboard() {
                       <input
                         type="number"
                         min="0"
-                        max={food.prepared || 0}
-                        value={food.sold || 0}
-                        onChange={(e) => updateFoodStock(food.id, 'sold', e.target.value)}
+                        max={Math.max(inventory.prepared - inventory.reserved, 0)}
+                        value={inventory.sold}
+                        onChange={(e) => updateFoodStock(food.id, 'sold', e.target.value, activeCanteenId)}
                       />
                     </label>
                   </div>

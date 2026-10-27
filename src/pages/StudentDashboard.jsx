@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { useFood } from '../context/FoodContext'
+import { useFood, getFoodInventory } from '../context/FoodContext'
 import { useCart } from '../context/CartContext'
 import { useAuth } from '../context/AuthContext'
 
@@ -203,10 +203,14 @@ export default function StudentDashboard() {
       ) : (
         <div className="card-grid two">
           {filteredFoods.map((food) => {
-            const currentQty = cartItemMap[food.id] || 0
-            const availableStock = Math.max(food.prepared - food.sold, 0)
-            const isAvailable = food.enabled !== false && availableStock > 0
-            const foodCanteen = canteens.find((c) => food.canteenIds?.includes(c.id)) || canteens[0]
+            const foodCanteen = activeCanteens.find((canteen) => food.canteenIds?.includes(Number(canteen.id))) ||
+              canteens.find((canteen) => food.canteenIds?.includes(Number(canteen.id)))
+            const currentQty = cart[0] && Number(cart[0].canteenId) === Number(foodCanteen?.id)
+              ? cartItemMap[food.id] || 0
+              : 0
+            const inventory = getFoodInventory(food, foodCanteen?.id)
+            const availableStock = Math.max(inventory.prepared - inventory.sold - inventory.reserved, 0)
+            const isAvailable = foodCanteen?.active !== false && inventory.enabled && availableStock > 0
 
             return (
               <article className="food-card" key={food.id}>
@@ -224,7 +228,7 @@ export default function StudentDashboard() {
                   <p>{food.description}</p>
 
                   <div className="card-row food-bottom">
-                    <strong>Rs. {food.price}</strong>
+                    <strong>Rs. {inventory.price}</strong>
 
                     {!isAvailable ? (
                       <button className="btn btn-secondary btn-sm" disabled>
@@ -244,6 +248,7 @@ export default function StudentDashboard() {
                           type="button"
                           className="qty-btn small"
                           onClick={() => updateQuantity(food.id, currentQty + 1)}
+                          disabled={currentQty >= availableStock}
                         >
                           +
                         </button>
@@ -252,7 +257,7 @@ export default function StudentDashboard() {
                       <button
                         type="button"
                         className="btn btn-primary btn-sm add-cart-btn"
-                        onClick={() => addToCart(food, foodCanteen)}
+                        onClick={() => addToCart({ ...food, price: inventory.price }, foodCanteen)}
                       >
                         + Add to Cart
                       </button>

@@ -1,9 +1,9 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useCart } from '../context/CartContext'
 import { useOrders } from '../context/OrderContext'
 import { useAuth } from '../context/AuthContext'
-import { useFood } from '../context/FoodContext'
+import { useFood, getFoodInventory } from '../context/FoodContext'
 
 export default function Cart() {
   const navigate = useNavigate()
@@ -17,10 +17,11 @@ export default function Cart() {
     subtotal,
     serviceFee,
     total,
+    showToast,
   } = useCart()
   const { placeOrder } = useOrders()
   const { currentUser } = useAuth()
-  const { canteens } = useFood()
+  const { canteens, foods } = useFood()
 
   // Track the target canteen for this order
   const [selectedCanteenId, setSelectedCanteenId] = useState(() => {
@@ -53,24 +54,43 @@ export default function Cart() {
   const [paymentMethod, setPaymentMethod] = useState('Pay at counter')
   const [orderNotes, setOrderNotes] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const submittingRef = useRef(false)
 
   const handleCanteenSwitch = (newId) => {
-    setSelectedCanteenId(newId)
-    const target = canteens.find((c) => c.id === newId)
-    if (target) {
-      changeCartCanteen(newId, target.name)
+    const target = canteens.find((canteen) => Number(canteen.id) === Number(newId))
+    if (!target || target.active === false) {
+      showToast('That canteen is currently unavailable.', 'error')
+      return
     }
+
+    const prices = {}
+    const canMove = cart.every((item) => {
+      const food = foods.find((entry) => Number(entry.id) === Number(item.id))
+      if (!food || !food.canteenIds.includes(Number(newId))) return false
+      const inventory = getFoodInventory(food, newId)
+      prices[item.id] = inventory.price
+      return inventory.enabled &&
+        inventory.prepared - inventory.sold - inventory.reserved >= Number(item.quantity)
+    })
+    if (!canMove) {
+      showToast('This canteen does not offer every cart item or does not have enough stock.', 'error')
+      return
+    }
+
+    setSelectedCanteenId(Number(newId))
+    changeCartCanteen(newId, target.name, prices)
   }
 
   const handlePlaceOrder = (e) => {
     e.preventDefault()
-    if (cart.length === 0) return
+    if (cart.length === 0 || submittingRef.current) return
 
-    if (!currentUser) {
+    if (currentUser?.role !== 'student') {
       navigate('/login?redirect=/cart')
       return
     }
 
+    submittingRef.current = true
     setIsSubmitting(true)
 
     // Route order explicitly to the selected canteen
@@ -87,9 +107,17 @@ export default function Cart() {
       studentId: currentUser.id,
     })
 
+    if (newOrder?.error) {
+      showToast(newOrder.error, 'error')
+      submittingRef.current = false
+      setIsSubmitting(false)
+      return
+    }
+
     clearCart()
 
     setTimeout(() => {
+      submittingRef.current = false
       setIsSubmitting(false)
       navigate('/orders')
     }, 400)
@@ -300,6 +328,7 @@ export default function Cart() {
 
             <div className="payment-options">
               <label>Payment Method</label>
+              <p className="payment-note">This demo supports pay-at-counter orders only.</p>
               <div className="payment-choice-list">
                 <label className="payment-radio-label">
                   <input
@@ -316,20 +345,18 @@ export default function Cart() {
                     type="radio"
                     name="paymentMethod"
                     value="Student ID Card"
-                    checked={paymentMethod === 'Student ID Card'}
-                    onChange={(e) => setPaymentMethod(e.target.value)}
+                    disabled
                   />
-                  <span>Student ID Card Balance</span>
+                  <span>Student ID Card (not configured)</span>
                 </label>
                 <label className="payment-radio-label">
                   <input
                     type="radio"
                     name="paymentMethod"
                     value="Online Payment"
-                    checked={paymentMethod === 'Online Payment'}
-                    onChange={(e) => setPaymentMethod(e.target.value)}
+                    disabled
                   />
-                  <span>Online Card / QR</span>
+                  <span>Online payment (not configured)</span>
                 </label>
               </div>
             </div>
