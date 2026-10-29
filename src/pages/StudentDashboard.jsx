@@ -67,7 +67,7 @@ export default function StudentDashboard() {
   const cartItemMap = useMemo(() => {
     const map = {}
     cart.forEach((item) => {
-      map[item.id] = item.quantity
+      map[`${Number(item.canteenId)}:${item.id}`] = item.quantity
     })
     return map
   }, [cart])
@@ -205,12 +205,10 @@ export default function StudentDashboard() {
           {filteredFoods.map((food) => {
             const foodCanteen = activeCanteens.find((canteen) => food.canteenIds?.includes(Number(canteen.id))) ||
               canteens.find((canteen) => food.canteenIds?.includes(Number(canteen.id)))
-            const currentQty = cart[0] && Number(cart[0].canteenId) === Number(foodCanteen?.id)
-              ? cartItemMap[food.id] || 0
-              : 0
+            const currentQty = cartItemMap[`${Number(foodCanteen?.id)}:${food.id}`] || 0
             const inventory = getFoodInventory(food, foodCanteen?.id)
             const availableStock = Math.max(inventory.prepared - inventory.sold - inventory.reserved, 0)
-            const isAvailable = foodCanteen?.active !== false && inventory.enabled && availableStock > 0
+            const isAvailable = Boolean(foodCanteen) && foodCanteen.active !== false && inventory.enabled && availableStock > 0
 
             return (
               <article className="food-card" key={food.id}>
@@ -222,7 +220,7 @@ export default function StudentDashboard() {
                 <div className="food-card-body">
                   <div className="food-card-meta">
                     <span className="small-label">{food.category}</span>
-                    <span className="food-canteen-source-tag">📍 {foodCanteen.name}</span>
+                    <span className="food-canteen-source-tag">📍 {foodCanteen?.name || 'Canteen unavailable'}</span>
                   </div>
                   <h3>{food.name}</h3>
                   <p>{food.description}</p>
@@ -239,7 +237,7 @@ export default function StudentDashboard() {
                         <button
                           type="button"
                           className="qty-btn small"
-                          onClick={() => updateQuantity(food.id, currentQty - 1)}
+                          onClick={() => updateQuantity(food.id, currentQty - 1, foodCanteen.id)}
                         >
                           −
                         </button>
@@ -247,7 +245,7 @@ export default function StudentDashboard() {
                         <button
                           type="button"
                           className="qty-btn small"
-                          onClick={() => updateQuantity(food.id, currentQty + 1)}
+                          onClick={() => updateQuantity(food.id, currentQty + 1, foodCanteen.id)}
                           disabled={currentQty >= availableStock}
                         >
                           +
@@ -257,6 +255,7 @@ export default function StudentDashboard() {
                       <button
                         type="button"
                         className="btn btn-primary btn-sm add-cart-btn"
+                        aria-label={`Add ${food.name} from ${foodCanteen?.name} to cart`}
                         onClick={() => addToCart({ ...food, price: inventory.price }, foodCanteen)}
                       >
                         + Add to Cart

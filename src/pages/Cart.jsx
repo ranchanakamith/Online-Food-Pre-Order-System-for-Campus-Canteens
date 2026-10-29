@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useCart } from '../context/CartContext'
 import { useOrders } from '../context/OrderContext'
 import { useAuth } from '../context/AuthContext'
-import { useFood, getFoodInventory } from '../context/FoodContext'
+import { useFood } from '../context/FoodContext'
 
 export default function Cart() {
   const navigate = useNavigate()
@@ -12,42 +12,45 @@ export default function Cart() {
     updateQuantity,
     removeFromCart,
     updateItemInstructions,
-    changeCartCanteen,
     clearCart,
-    subtotal,
+    clearCanteenCart,
     serviceFee,
-    total,
     showToast,
   } = useCart()
   const { placeOrder } = useOrders()
   const { currentUser } = useAuth()
-  const { canteens, foods } = useFood()
+  const { canteens } = useFood()
 
-  // Track the target canteen for this order
+  const canteenGroups = useMemo(() => {
+    const groups = new Map()
+    cart.forEach((item) => {
+      const id = Number(item.canteenId)
+      if (!groups.has(id)) {
+        const canteen = canteens.find((entry) => Number(entry.id) === id)
+        groups.set(id, { id, name: canteen?.name || item.canteenName, location: canteen?.location, items: [], subtotal: 0 })
+      }
+      const group = groups.get(id)
+      group.items.push(item)
+      group.subtotal += Number(item.price) * Number(item.quantity)
+    })
+    return [...groups.values()]
+  }, [cart, canteens])
+
+  // Each kitchen receives only its own items; the other groups stay in the cart.
   const [selectedCanteenId, setSelectedCanteenId] = useState(() => {
     return cart.length > 0 && cart[0]?.canteenId ? Number(cart[0].canteenId) : 1
   })
 
   useEffect(() => {
-    if (cart.length > 0 && cart[0]?.canteenId) {
-      setSelectedCanteenId(Number(cart[0].canteenId))
+    if (canteenGroups.length > 0 && !canteenGroups.some((group) => group.id === selectedCanteenId)) {
+      setSelectedCanteenId(canteenGroups[0].id)
     }
-  }, [cart])
+  }, [canteenGroups, selectedCanteenId])
 
-  const targetCanteen = useMemo(() => {
-    return (
-      canteens.find((c) => c.id === Number(selectedCanteenId)) || {
-        id: selectedCanteenId,
-        name:
-          selectedCanteenId === 2
-            ? 'Engineering Canteen'
-            : selectedCanteenId === 3
-            ? 'Student Centre Cafe'
-            : 'Main Canteen',
-        location: 'Campus Dining Hall',
-      }
-    )
-  }, [canteens, selectedCanteenId])
+  const targetCanteen = canteenGroups.find((group) => group.id === selectedCanteenId) || canteenGroups[0]
+  const checkoutItems = targetCanteen?.items || []
+  const subtotal = targetCanteen?.subtotal || 0
+  const total = subtotal + serviceFee
 
   const [pickupTime, setPickupTime] = useState('12:30 PM')
   const [orderType, setOrderType] = useState('Takeaway')
@@ -56,34 +59,9 @@ export default function Cart() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const submittingRef = useRef(false)
 
-  const handleCanteenSwitch = (newId) => {
-    const target = canteens.find((canteen) => Number(canteen.id) === Number(newId))
-    if (!target || target.active === false) {
-      showToast('That canteen is currently unavailable.', 'error')
-      return
-    }
-
-    const prices = {}
-    const canMove = cart.every((item) => {
-      const food = foods.find((entry) => Number(entry.id) === Number(item.id))
-      if (!food || !food.canteenIds.includes(Number(newId))) return false
-      const inventory = getFoodInventory(food, newId)
-      prices[item.id] = inventory.price
-      return inventory.enabled &&
-        inventory.prepared - inventory.sold - inventory.reserved >= Number(item.quantity)
-    })
-    if (!canMove) {
-      showToast('This canteen does not offer every cart item or does not have enough stock.', 'error')
-      return
-    }
-
-    setSelectedCanteenId(Number(newId))
-    changeCartCanteen(newId, target.name, prices)
-  }
-
   const handlePlaceOrder = (e) => {
     e.preventDefault()
-    if (cart.length === 0 || submittingRef.current) return
+    if (checkoutItems.length === 0 || submittingRef.current) return
 
     if (currentUser?.role !== 'student') {
       navigate('/login?redirect=/cart')
@@ -95,9 +73,9 @@ export default function Cart() {
 
     // Route order explicitly to the selected canteen
     const newOrder = placeOrder({
-      items: cart,
+      items: checkoutItems,
       canteen: {
-        id: Number(selectedCanteenId),
+        id: targetCanteen.id,
         name: targetCanteen.name,
       },
       pickupTime,
@@ -114,12 +92,16 @@ export default function Cart() {
       return
     }
 
-    clearCart()
+    clearCanteenCart(targetCanteen.id)
+    const hasOtherCanteens = canteenGroups.length > 1
+    if (hasOtherCanteens) {
+      showToast('Order placed for ' + targetCanteen.name + '. Your other canteen items are still in the cart.')
+    }
 
     setTimeout(() => {
       submittingRef.current = false
       setIsSubmitting(false)
-      navigate('/orders')
+      if (!hasOtherCanteens) navigate('/orders')
     }, 400)
   }
 
@@ -155,10 +137,10 @@ export default function Cart() {
 
   return (
     <section className="section container page-top">
-      {/* Clean Canteen Destination Pill */}
+      {/* Keep the checkout destination visible while browsing the combined cart. */}
       <div className="cart-canteen-pill">
-        <span>📍 Preparing at <strong>{targetCanteen.name}</strong> ({targetCanteen.location})</span>
-        <Link to={`/canteens/${selectedCanteenId}/menu`} className="text-link small-text">
+        <span>📍 Checking out from <strong>{targetCanteen.name}</strong>{targetCanteen.location && ` (${targetCanteen.location})`}</span>
+        <Link to={`/canteens/${targetCanteen.id}/menu`} className="text-link small-text">
           + Add more items
         </Link>
       </div>
@@ -166,7 +148,8 @@ export default function Cart() {
       <div className="section-heading">
         <div>
           <span className="eyebrow">Checkout Review</span>
-          <h1>Your Cart ({cart.reduce((sum, item) => sum + item.quantity, 0)} items)</h1>
+          <h1>Your Cart ({cart.reduce((sum, item) => sum + Number(item.quantity), 0)} items)</h1>
+          {canteenGroups.length > 1 && <p>Items from {canteenGroups.length} canteens. Place a separate order for each canteen.</p>}
         </div>
         <button
           type="button"
@@ -180,103 +163,108 @@ export default function Cart() {
 
       <div className="checkout-grid">
         <div className="panel cart-items-list">
-          <div className="cart-items-header">
-            <h3>Selected Food Items ({targetCanteen.name})</h3>
-            <Link to={`/canteens/${selectedCanteenId}/menu`} className="text-link small-text">
-              + Add more items
-            </Link>
-          </div>
-
-          {cart.map((item) => {
-            const itemTotal = item.price * item.quantity
-
-            return (
-              <div className="cart-item" key={item.id}>
-                {item.image && (
-                  <img
-                    src={item.image}
-                    alt={item.name}
-                    className="cart-item-thumbnail"
-                  />
-                )}
-                <div className="cart-item-info">
-                  <h3>{item.name}</h3>
-                  <p className="cart-canteen-tag">📍 {targetCanteen.name}</p>
-                  <span className="cart-unit-price">Rs. {item.price} each</span>
-
-                  <div className="cart-instructions-wrapper">
-                    <input
-                      type="text"
-                      className="cart-instruction-input"
-                      placeholder="Special instructions (e.g. less chili, no onions)..."
-                      value={item.instructions || ''}
-                      onChange={(e) => updateItemInstructions(item.id, e.target.value)}
-                    />
-                  </div>
-                </div>
-
-                <div className="qty-controls">
-                  <button
-                    type="button"
-                    className="qty-btn"
-                    onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                    aria-label={`Decrease ${item.name} quantity`}
-                  >
-                    −
-                  </button>
-                  <strong className="qty-number">{item.quantity}</strong>
-                  <button
-                    type="button"
-                    className="qty-btn"
-                    onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                    aria-label={`Increase ${item.name} quantity`}
-                  >
-                    +
-                  </button>
-                </div>
-
-                <div className="cart-item-actions">
-                  <strong className="cart-item-price">Rs. {itemTotal.toLocaleString()}</strong>
-                  <button
-                    type="button"
-                    className="btn-remove-item"
-                    onClick={() => removeFromCart(item.id)}
-                    title={`Remove ${item.name} from cart`}
-                  >
-                    Remove
-                  </button>
-                </div>
+          {canteenGroups.map((group) => (
+            <div key={group.id}>
+              <div className="cart-items-header">
+                <h3>{group.name} · Rs. {group.subtotal.toLocaleString()}</h3>
+                <Link to={`/canteens/${group.id}/menu`} className="text-link small-text">
+                  + Add more items
+                </Link>
               </div>
-            )
-          })}
+
+              {group.items.map((item) => {
+                const itemTotal = item.price * item.quantity
+
+                return (
+                  <div className="cart-item" key={`${item.canteenId}:${item.id}`}>
+                    {item.image && (
+                      <img
+                        src={item.image}
+                        alt={item.name}
+                        className="cart-item-thumbnail"
+                      />
+                    )}
+                    <div className="cart-item-info">
+                      <h3>{item.name}</h3>
+                      <p className="cart-canteen-tag">📍 {group.name}</p>
+                      <span className="cart-unit-price">Rs. {item.price} each</span>
+
+                      <div className="cart-instructions-wrapper">
+                        <input
+                          type="text"
+                          className="cart-instruction-input"
+                          placeholder="Special instructions (e.g. less chili, no onions)..."
+                          value={item.instructions || ''}
+                          onChange={(e) => updateItemInstructions(item.id, e.target.value, item.canteenId)}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="qty-controls">
+                      <button
+                        type="button"
+                        className="qty-btn"
+                        onClick={() => updateQuantity(item.id, item.quantity - 1, item.canteenId)}
+                        aria-label={`Decrease ${item.name} quantity`}
+                      >
+                        −
+                      </button>
+                      <strong className="qty-number">{item.quantity}</strong>
+                      <button
+                        type="button"
+                        className="qty-btn"
+                        onClick={() => updateQuantity(item.id, item.quantity + 1, item.canteenId)}
+                        aria-label={`Increase ${item.name} quantity`}
+                      >
+                        +
+                      </button>
+                    </div>
+
+                    <div className="cart-item-actions">
+                      <strong className="cart-item-price">Rs. {itemTotal.toLocaleString()}</strong>
+                      <button
+                        type="button"
+                        className="btn-remove-item"
+                        onClick={() => removeFromCart(item.id, item.canteenId)}
+                        title={`Remove ${item.name} from cart`}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          ))}
         </div>
 
         <aside className="panel summary-card">
-          <h2>Order Summary</h2>
+          <h2>Order Summary · {targetCanteen.name}</h2>
 
-          {/* Explicit Canteen Selector for the student to confirm/change */}
+          {/* Select an existing group without moving items between kitchens. */}
           <div className="cart-canteen-selector-box">
             <label>
-              Canteen Kitchen (Order Destination)
+              Canteen to check out
               <select
-                value={selectedCanteenId}
-                onChange={(e) => handleCanteenSwitch(Number(e.target.value))}
+                value={targetCanteen.id}
+                onChange={(e) => setSelectedCanteenId(Number(e.target.value))}
+                disabled={isSubmitting}
                 className="cart-canteen-select"
               >
-                {canteens.map((c) => (
+                {canteenGroups.map((c) => (
                   <option key={c.id} value={c.id}>
-                    {c.name} ({c.location})
+                    {c.name} · Rs. {c.subtotal.toLocaleString()}
                   </option>
                 ))}
               </select>
             </label>
             <small className="selector-tip">
-              Order will route exclusively to <strong>{targetCanteen.name}</strong> kitchen staff.
+              This order includes only <strong>{targetCanteen.name}</strong> items. Other canteen items stay in your cart.
             </small>
           </div>
 
           <div className="summary-row">
-            <span>Subtotal</span>
+            <span>{targetCanteen.name} subtotal</span>
             <strong>Rs. {subtotal.toLocaleString()}</strong>
           </div>
           <div className="summary-row">

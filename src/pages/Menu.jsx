@@ -37,9 +37,8 @@ export default function Menu() {
   // Map cart items by food ID for quick quantity lookup
   const cartItemMap = useMemo(() => {
     const map = {}
-    if (cart[0] && Number(cart[0].canteenId) === Number(canteen.id)) {
-      cart.forEach((item) => { map[item.id] = item.quantity })
-    }
+    cart.filter((item) => Number(item.canteenId) === Number(canteen.id))
+      .forEach((item) => { map[item.id] = item.quantity })
     return map
   }, [cart, canteen.id])
 
@@ -169,6 +168,7 @@ export default function Menu() {
                   </div>
 
                   <h3>{food.name}</h3>
+                  <span className="food-canteen-source-tag">📍 {canteen.name}</span>
                   <p>{food.description}</p>
 
                   <div className="card-row food-bottom">
@@ -183,7 +183,7 @@ export default function Menu() {
                         <button
                           type="button"
                           className="qty-btn small"
-                          onClick={() => updateQuantity(food.id, currentQtyInCart - 1)}
+                          onClick={() => updateQuantity(food.id, currentQtyInCart - 1, canteen.id)}
                           title="Decrease quantity"
                         >
                           −
@@ -192,7 +192,7 @@ export default function Menu() {
                         <button
                           type="button"
                           className="qty-btn small"
-                          onClick={() => updateQuantity(food.id, currentQtyInCart + 1)}
+                          onClick={() => updateQuantity(food.id, currentQtyInCart + 1, canteen.id)}
                           disabled={currentQtyInCart >= availableStock}
                           title="Increase quantity"
                         >
@@ -203,6 +203,7 @@ export default function Menu() {
                       <button
                         type="button"
                         className="btn btn-primary add-cart-btn"
+                        aria-label={`Add ${food.name} from ${canteen.name} to cart`}
                         onClick={() => addToCart({ ...food, price: inventory.price }, canteen)}
                       >
                         + Add to Cart

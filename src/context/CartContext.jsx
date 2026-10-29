@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useContext, useEffect, useRef, useState } from 'react'
 import { useFood, getFoodInventory } from './FoodContext'
 
 const CartContext = createContext()
@@ -15,6 +15,17 @@ export function CartProvider({ children }) {
     }
   })
   const [toast, setToast] = useState(null)
+  const cartRef = useRef(cart)
+
+  // Read the latest cart even when several items are added in one event (reorder).
+  const updateCart = (update) => {
+    const next = update(cartRef.current)
+    cartRef.current = next
+    setCart(next)
+  }
+
+  const matchesItem = (item, itemId, canteenId) =>
+    Number(item.id) === Number(itemId) && Number(item.canteenId) === Number(canteenId)
 
   useEffect(() => {
     try { localStorage.setItem('campusbite_cart', JSON.stringify(cart)) }
@@ -30,8 +41,8 @@ export function CartProvider({ children }) {
     const targetCanteenId = canteen
       ? Number(canteen.id)
       : Number(food.canteenIds?.[0] || 1)
-    const targetCanteenName = canteen?.name || 'Main Canteen'
     const targetCanteen = canteens.find((entry) => Number(entry.id) === targetCanteenId)
+    const targetCanteenName = targetCanteen?.name || canteen?.name
     const menuFood = foods.find((entry) => Number(entry.id) === Number(food.id))
     if (!targetCanteen || targetCanteen.active === false) {
       showToast('This canteen is currently unavailable.', 'error')
@@ -43,11 +54,9 @@ export function CartProvider({ children }) {
     }
 
     const inventory = getFoodInventory(menuFood, targetCanteenId)
-    const currentCanteenId = Number(cart[0]?.canteenId)
-    const sameCanteen = cart.length > 0 && currentCanteenId === targetCanteenId
-    const existingQuantity = sameCanteen
-      ? cart.filter((item) => Number(item.id) === Number(food.id)).reduce((sum, item) => sum + Number(item.quantity || 0), 0)
-      : 0
+    const existingQuantity = cartRef.current
+      .filter((item) => matchesItem(item, food.id, targetCanteenId))
+      .reduce((sum, item) => sum + Number(item.quantity || 0), 0)
     const available = inventory.prepared - inventory.sold - inventory.reserved
     const requested = Math.max(1, Number(qty) || 1)
     if (!inventory.enabled || existingQuantity + requested > available) {
@@ -66,63 +75,55 @@ export function CartProvider({ children }) {
       quantity: requested,
       instructions: '',
     }
-    if (!sameCanteen) {
-      if (cart.length > 0) showToast('Previous items were cleared because orders must come from one canteen.', 'info')
-      setCart([item])
-    } else {
-      const existing = cart.find((entry) => Number(entry.id) === Number(food.id))
-      setCart(existing
-        ? cart.map((entry) => Number(entry.id) === Number(food.id)
+    updateCart((previous) => {
+      const existing = previous.find((entry) => matchesItem(entry, food.id, targetCanteenId))
+      return existing
+        ? previous.map((entry) => matchesItem(entry, food.id, targetCanteenId)
             ? { ...entry, quantity: Number(entry.quantity) + requested, price: inventory.price }
             : entry)
-        : [...cart, item])
-    }
-    showToast('Added ' + food.name + ' to ' + targetCanteenName + ' cart!')
+        : [...previous, item]
+    })
+    showToast('Added ' + food.name + ' from ' + targetCanteenName + ' to your cart!')
   }
 
-  const updateQuantity = (itemId, newQty) => {
-    const item = cart.find((entry) => Number(entry.id) === Number(itemId))
+  const updateQuantity = (itemId, newQty, canteenId) => {
+    const item = cartRef.current.find((entry) => matchesItem(entry, itemId, canteenId))
     if (!item) return
     if (newQty <= 0) {
-      removeFromCart(itemId)
+      removeFromCart(itemId, canteenId)
       return
     }
     const food = foods.find((entry) => Number(entry.id) === Number(itemId))
     const inventory = getFoodInventory(food, item.canteenId)
-    if (newQty > inventory.prepared - inventory.sold - inventory.reserved) {
+    const canteen = canteens.find((entry) => Number(entry.id) === Number(canteenId))
+    if (!canteen || canteen.active === false || !food?.canteenIds.includes(Number(canteenId)) || !inventory.enabled ||
+        newQty > inventory.prepared - inventory.sold - inventory.reserved) {
       showToast('There is not enough stock for ' + item.name + '.', 'error')
       return
     }
-    setCart((previous) => previous.map((entry) =>
-      Number(entry.id) === Number(itemId) ? { ...entry, quantity: newQty, price: inventory.price } : entry
+    updateCart((previous) => previous.map((entry) =>
+      matchesItem(entry, itemId, canteenId) ? { ...entry, quantity: newQty, price: inventory.price } : entry
     ))
   }
 
-  const removeFromCart = (itemId) => {
-    const item = cart.find((entry) => Number(entry.id) === Number(itemId))
-    setCart((previous) => previous.filter((entry) => Number(entry.id) !== Number(itemId)))
+  const removeFromCart = (itemId, canteenId) => {
+    const item = cartRef.current.find((entry) => matchesItem(entry, itemId, canteenId))
+    updateCart((previous) => previous.filter((entry) => !matchesItem(entry, itemId, canteenId)))
     if (item) showToast('Removed ' + item.name + ' from cart', 'info')
   }
 
-  const updateItemInstructions = (itemId, instructions) => {
-    setCart((previous) => previous.map((item) =>
-      Number(item.id) === Number(itemId) ? { ...item, instructions } : item
+  const updateItemInstructions = (itemId, instructions, canteenId) => {
+    updateCart((previous) => previous.map((item) =>
+      matchesItem(item, itemId, canteenId) ? { ...item, instructions } : item
     ))
   }
 
-  const changeCartCanteen = (newCanteenId, newCanteenName, newPrices = {}) => {
-    setCart((previous) => previous.map((item) => ({
-      ...item,
-      canteenId: Number(newCanteenId),
-      canteenName: newCanteenName,
-      price: newPrices[item.id] ?? item.price,
-    })))
-    showToast('Order assigned to ' + newCanteenName, 'info')
-  }
+  const clearCart = () => updateCart(() => [])
+  const clearCanteenCart = (canteenId) => updateCart((previous) =>
+    previous.filter((item) => Number(item.canteenId) !== Number(canteenId))
+  )
 
-  const clearCart = () => setCart([])
-
-  const activeCartCanteen = cart.length > 0
+  const activeCartCanteen = cart.length > 0 && cart.every((item) => Number(item.canteenId) === Number(cart[0].canteenId))
     ? { id: Number(cart[0].canteenId), name: cart[0].canteenName }
     : null
   const totalItems = cart.reduce((sum, item) => sum + Number(item.quantity || 0), 0)
@@ -133,7 +134,7 @@ export function CartProvider({ children }) {
   return (
     <CartContext.Provider value={{
       cart, activeCartCanteen, addToCart, updateQuantity, removeFromCart,
-      updateItemInstructions, changeCartCanteen, clearCart,
+      updateItemInstructions, clearCart, clearCanteenCart,
       totalItems, subtotal, serviceFee, total, toast, showToast,
       hideToast: () => setToast(null),
     }}>
