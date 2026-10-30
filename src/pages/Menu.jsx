@@ -152,7 +152,7 @@ export default function Menu() {
             return (
               <article className="food-card" key={food.id}>
                 <div className="food-image-wrapper">
-                  <img src={food.image} alt={food.name} loading="lazy" />
+                  <img src={food.image} alt={food.name} loading="lazy" style={{ objectPosition: food.imagePosition }} />
                   {food.tag && <span className="food-tag-badge">{food.tag}</span>}
                   {!isAvailable && <span className="food-sold-out-overlay">Sold Out</span>}
                 </div>

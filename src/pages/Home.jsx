@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useFood } from '../context/FoodContext'
+import { foodPhotos } from '../data/foodPhotos'
 
 export default function Home() {
   const navigate = useNavigate()
@@ -10,7 +11,7 @@ export default function Home() {
   const featuredFood = foods[0] || {
     name: 'Chicken Fried Rice',
     price: 650,
-    image: 'https://images.unsplash.com/photo-1512058564366-18510be2db19?auto=format&fit=crop&w=1000&q=80',
+    image: foodPhotos[1].image,
   }
 
   const handleSearch = (e) => {
@@ -87,6 +88,7 @@ export default function Home() {
               <img
                 src={featuredFood.image}
                 alt={featuredFood.name}
+                style={{ objectPosition: featuredFood.imagePosition }}
               />
               <span className="hero-canteen-pill">Main Canteen · ⚡ 10–15 min</span>
             </div>

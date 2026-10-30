@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useRef, useState } from 'react'
 import { useFood, getFoodInventory } from './FoodContext'
+import { applyFoodPhoto } from '../data/foodPhotos'
 
 const CartContext = createContext()
 
@@ -8,7 +9,7 @@ export function CartProvider({ children }) {
   const [cart, setCart] = useState(() => {
     try {
       const saved = JSON.parse(localStorage.getItem('campusbite_cart') || '[]')
-      return Array.isArray(saved) ? saved : []
+      return Array.isArray(saved) ? saved.map(applyFoodPhoto) : []
     } catch (error) {
       console.error(error)
       return []
@@ -69,7 +70,10 @@ export function CartProvider({ children }) {
       name: food.name,
       price: inventory.price,
       category: food.category,
-      image: food.image,
+      image: menuFood.image,
+      imagePosition: menuFood.imagePosition,
+      catalogImage: menuFood.catalogImage,
+      catalogPhotoId: menuFood.catalogPhotoId,
       canteenId: targetCanteenId,
       canteenName: targetCanteenName,
       quantity: requested,
@@ -79,7 +83,9 @@ export function CartProvider({ children }) {
       const existing = previous.find((entry) => matchesItem(entry, food.id, targetCanteenId))
       return existing
         ? previous.map((entry) => matchesItem(entry, food.id, targetCanteenId)
-            ? { ...entry, quantity: Number(entry.quantity) + requested, price: inventory.price }
+            ? { ...entry, quantity: Number(entry.quantity) + requested, price: inventory.price,
+                image: menuFood.image, imagePosition: menuFood.imagePosition,
+                catalogImage: menuFood.catalogImage, catalogPhotoId: menuFood.catalogPhotoId }
             : entry)
         : [...previous, item]
     })
@@ -91,6 +97,12 @@ export function CartProvider({ children }) {
     if (!item) return
     if (newQty <= 0) {
       removeFromCart(itemId, canteenId)
+      return
+    }
+    if (newQty < Number(item.quantity)) {
+      updateCart((previous) => previous.map((entry) =>
+        matchesItem(entry, itemId, canteenId) ? { ...entry, quantity: newQty } : entry
+      ))
       return
     }
     const food = foods.find((entry) => Number(entry.id) === Number(itemId))

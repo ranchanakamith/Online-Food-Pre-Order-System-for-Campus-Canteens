@@ -213,7 +213,7 @@ export default function StudentDashboard() {
             return (
               <article className="food-card" key={food.id}>
                 <div className="food-image-wrapper">
-                  <img src={food.image} alt={food.name} loading="lazy" />
+                  <img src={food.image} alt={food.name} loading="lazy" style={{ objectPosition: food.imagePosition }} />
                   {!isAvailable && <span className="food-sold-out-overlay">Sold Out</span>}
                 </div>
 

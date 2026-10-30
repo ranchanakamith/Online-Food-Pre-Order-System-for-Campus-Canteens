@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { useFood, getFoodInventory } from '../context/FoodContext'
 import { useOrders } from '../context/OrderContext'
 import { useAuth } from '../context/AuthContext'
+import { foodPhotos } from '../data/foodPhotos'
 
 const actionLabels = {
   PENDING: 'Accept Order',
@@ -14,16 +15,25 @@ const actionLabels = {
 }
 
 const photoPresets = [
-  { label: '🍛 Rice & Curry', url: 'https://images.unsplash.com/photo-1546833999-b9f581a1996d?auto=format&fit=crop&w=1000&q=80' },
-  { label: '🍚 Fried Rice', url: 'https://images.unsplash.com/photo-1512058564366-18510be2db19?auto=format&fit=crop&w=1000&q=80' },
-  { label: '🥘 Kottu / Roti', url: 'https://images.unsplash.com/photo-1601050690597-df0568f70950?auto=format&fit=crop&w=1000&q=80' },
-  { label: '🥪 Sandwich', url: 'https://images.unsplash.com/photo-1528735602780-2552fd46c7af?auto=format&fit=crop&w=1000&q=80' },
-  { label: '🍔 Burger', url: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=1000&q=80' },
-  { label: '🥐 Pastry Roll', url: 'https://images.unsplash.com/photo-1626777552726-4a6b54c97e46?auto=format&fit=crop&w=1000&q=80' },
-  { label: '🧃 Fruit Juice', url: 'https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?auto=format&fit=crop&w=1000&q=80' },
-  { label: '☕ Iced Coffee', url: 'https://images.unsplash.com/photo-1461023058943-07fcbe16d735?auto=format&fit=crop&w=1000&q=80' },
-  { label: '🧁 Sweet Muffin', url: 'https://images.unsplash.com/photo-1607958996333-41aef7caef4b?auto=format&fit=crop&w=1000&q=80' },
-]
+  { label: '🍛 Rice & Curry', ...foodPhotos[3] },
+  { label: '🍚 Fried Rice', ...foodPhotos[1] },
+  { label: '🥘 Chicken Kottu', ...foodPhotos[2] },
+  { label: '🥪 Veggie Sandwich', ...foodPhotos[4] },
+  { label: '🍔 Chicken Burger', ...foodPhotos[5] },
+  { label: '🌯 Egg Roti Roll', ...foodPhotos[6] },
+  { label: '🍽️ String Hoppers', ...foodPhotos[7] },
+  { label: '🧃 Lime & Mint Cooler', ...foodPhotos[9] },
+  { label: '☕ Iced Coffee', ...foodPhotos[8] },
+  { label: '🧁 Chocolate Muffin', ...foodPhotos[10] },
+  { label: '🍳 Egg Hoppers', ...foodPhotos[11] },
+  { label: '🥥 Coconut Roti', ...foodPhotos[12] },
+  { label: '🍜 Chicken Noodles', ...foodPhotos[13] },
+  { label: '🐟 Fish Cutlets', ...foodPhotos[14] },
+  { label: '🥟 Vegetable Samosa', ...foodPhotos[15] },
+  { label: '🧀 Cheese Pasta', ...foodPhotos[16] },
+  { label: '🍓 Fruit Salad', ...foodPhotos[17] },
+  { label: '🥤 Chocolate Milkshake', ...foodPhotos[18] },
+].map((preset) => ({ ...preset, url: preset.image }))
 
 export default function WorkerDashboard() {
   const { canteens, foods, updateFoodStock, addFood, removeFood } = useFood()
@@ -36,6 +46,7 @@ export default function WorkerDashboard() {
   // Modal and new food form states
   const [showAddModal, setShowAddModal] = useState(false)
   const [successAlert, setSuccessAlert] = useState('')
+  const [foodFormError, setFoodFormError] = useState('')
   const [newFood, setNewFood] = useState({
     name: '',
     category: 'Lunch',
@@ -101,7 +112,10 @@ export default function WorkerDashboard() {
 
   const handleCreateFood = (e) => {
     e.preventDefault()
+    setFoodFormError('')
     if (!newFood.name.trim()) return
+    const selectedImage = newFood.image || photoPresets[0].url
+    const selectedPhotoId = Object.keys(foodPhotos).find((id) => foodPhotos[id].image === selectedImage)
 
     // Explicitly lock the newly added food item to THIS worker's assigned canteen
     const created = addFood({
@@ -112,9 +126,16 @@ export default function WorkerDashboard() {
       prepared: Number(newFood.prepared) || 30,
       description: newFood.description.trim() || 'Freshly prepared meal from the campus kitchen.',
       tag: newFood.tag || 'Fresh',
-      image: newFood.image || photoPresets[0].url,
+      image: selectedImage,
+      imagePosition: photoPresets.find((preset) => preset.url === selectedImage)?.position || 'center',
+      catalogPhotoId: selectedPhotoId ? Number(selectedPhotoId) : undefined,
+      catalogImage: selectedPhotoId ? selectedImage : undefined,
       canteenIds: [Number(activeCanteenId)],
     })
+    if (created?.error) {
+      setFoodFormError(created.error)
+      return
+    }
 
     setSuccessAlert(`✓ "${created.name}" added successfully to ${assignedCanteen.name}'s menu!`)
     setTimeout(() => setSuccessAlert(''), 3500)
@@ -277,6 +298,7 @@ export default function WorkerDashboard() {
                           src={food.image}
                           alt={food.name}
                           className="worker-food-thumb"
+                          style={{ objectPosition: food.imagePosition }}
                         />
                       )}
                       <div>
@@ -500,6 +522,7 @@ export default function WorkerDashboard() {
               </div>
 
               <div className="preset-images-section">
+                {foodFormError && <p role="alert" className="text-danger">{foodFormError}</p>}
                 <label>Quick Preset Food Photo (Click to select):</label>
                 <div className="photo-preset-chips">
                   {photoPresets.map((preset) => (
@@ -513,6 +536,7 @@ export default function WorkerDashboard() {
                     </button>
                   ))}
                 </div>
+                <a href={`${import.meta.env.BASE_URL}food-photo-credits.html`} target="_blank" rel="noreferrer" className="text-link small-text">Food photo credits</a>
               </div>
 
               <label>
@@ -520,7 +544,7 @@ export default function WorkerDashboard() {
                 <input
                   type="url"
                   placeholder="https://images.unsplash.com/..."
-                  value={newFood.image}
+                  value={photoPresets.some((preset) => preset.url === newFood.image) ? '' : newFood.image}
                   onChange={(e) => setNewFood({ ...newFood, image: e.target.value })}
                 />
               </label>

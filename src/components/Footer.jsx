@@ -28,12 +28,7 @@ export default function Footer() {
           <Link to="/orders">Order Tracking</Link>
           <Link to="/cart">My Cart</Link>
         </div>
-        <div>
-          <h4>Staff & Management</h4>
-          <Link to="/worker">Canteen Kitchen Portal</Link>
-          <Link to="/admin">Campus Admin Portal</Link>
-          <Link to="/login">Sign In / Switch Role</Link>
-        </div>
+        
       </div>
       <div className="container footer-bottom">
         <span>© 2026 CampusBite · University Web Development Module Project</span>

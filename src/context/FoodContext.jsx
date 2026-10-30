@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import { initialCanteens, initialFoods } from '../data/mockData'
+import { MENU_VERSION_KEY, MENU_VERSION, migrateSavedMenu, migrateSavedCanteens, hasSharedPhoto } from '../data/menuCatalog'
 
 const FoodContext = createContext()
 
@@ -36,7 +37,7 @@ export function FoodProvider({ children }) {
   const [canteens, setCanteens] = useState(() => {
     try {
       const saved = JSON.parse(localStorage.getItem('campusbite_canteens') || 'null')
-      if (Array.isArray(saved)) return saved
+      if (Array.isArray(saved)) return migrateSavedCanteens(saved)
     } catch (error) {
       console.error(error)
     }
@@ -46,7 +47,7 @@ export function FoodProvider({ children }) {
   const [foods, setFoods] = useState(() => {
     try {
       const saved = JSON.parse(localStorage.getItem('campusbite_foods') || 'null')
-      if (Array.isArray(saved)) return saved.map(normalizeFood)
+      if (Array.isArray(saved)) return migrateSavedMenu(saved, localStorage.getItem(MENU_VERSION_KEY)).map(normalizeFood)
     } catch (error) {
       console.error(error)
     }
@@ -59,7 +60,10 @@ export function FoodProvider({ children }) {
   }, [canteens])
 
   useEffect(() => {
-    try { localStorage.setItem('campusbite_foods', JSON.stringify(foods)) }
+    try {
+      localStorage.setItem('campusbite_foods', JSON.stringify(foods))
+      localStorage.setItem(MENU_VERSION_KEY, MENU_VERSION)
+    }
     catch (error) { console.error(error) }
   }, [foods])
 
@@ -186,8 +190,17 @@ export function FoodProvider({ children }) {
       image: foodData.image?.trim()
         ? foodData.image
         : 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=1000&q=80',
+      imagePosition: foodData.imagePosition || 'center',
+      catalogPhotoId: foodData.catalogPhotoId,
+      catalogImage: foodData.catalogImage,
     }
     const newFood = normalizeFood(base)
+    if (canteenIds.length > 1) {
+      return { error: 'Add this item to one canteen at a time, with a different photo for each canteen.' }
+    }
+    if (hasSharedPhoto(foods, newFood)) {
+      return { error: 'Another canteen already uses this photo for that item. Choose a different photo for your canteen.' }
+    }
     setFoods((current) => [newFood, ...current])
     return newFood
   }

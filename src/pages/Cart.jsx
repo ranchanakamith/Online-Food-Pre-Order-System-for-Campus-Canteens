@@ -19,7 +19,7 @@ export default function Cart() {
   } = useCart()
   const { placeOrder } = useOrders()
   const { currentUser } = useAuth()
-  const { canteens } = useFood()
+  const { canteens, foods } = useFood()
 
   const canteenGroups = useMemo(() => {
     const groups = new Map()
@@ -174,6 +174,8 @@ export default function Cart() {
 
               {group.items.map((item) => {
                 const itemTotal = item.price * item.quantity
+                const offeredHere = foods.some((food) => Number(food.id) === Number(item.id) &&
+                  food.canteenIds.includes(Number(item.canteenId)))
 
                 return (
                   <div className="cart-item" key={`${item.canteenId}:${item.id}`}>
@@ -182,11 +184,13 @@ export default function Cart() {
                         src={item.image}
                         alt={item.name}
                         className="cart-item-thumbnail"
+                        style={{ objectPosition: item.imagePosition }}
                       />
                     )}
                     <div className="cart-item-info">
                       <h3>{item.name}</h3>
                       <p className="cart-canteen-tag">📍 {group.name}</p>
+                      {!offeredHere && <p className="text-danger small-text">No longer on this canteen's menu. Remove this item before checkout.</p>}
                       <span className="cart-unit-price">Rs. {item.price} each</span>
 
                       <div className="cart-instructions-wrapper">
@@ -214,6 +218,7 @@ export default function Cart() {
                         type="button"
                         className="qty-btn"
                         onClick={() => updateQuantity(item.id, item.quantity + 1, item.canteenId)}
+                        disabled={!offeredHere}
                         aria-label={`Increase ${item.name} quantity`}
                       >
                         +
@@ -316,7 +321,7 @@ export default function Cart() {
 
             <div className="payment-options">
               <label>Payment Method</label>
-              <p className="payment-note">This demo supports pay-at-counter orders only.</p>
+              
               <div className="payment-choice-list">
                 <label className="payment-radio-label">
                   <input
@@ -327,15 +332,6 @@ export default function Cart() {
                     onChange={(e) => setPaymentMethod(e.target.value)}
                   />
                   <span>Cash / Pay at Counter</span>
-                </label>
-                <label className="payment-radio-label">
-                  <input
-                    type="radio"
-                    name="paymentMethod"
-                    value="Student ID Card"
-                    disabled
-                  />
-                  <span>Student ID Card (not configured)</span>
                 </label>
                 <label className="payment-radio-label">
                   <input
